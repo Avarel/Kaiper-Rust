@@ -1,107 +1,77 @@
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::ops::{Index, IndexMut};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::borrow::Borrow;
+use std::mem;
 
 pub fn test() {
-    let mut scope: Scope<&str, i32> = Scope::new();
-    scope.insert("hello", 32);
+    let mut scope1: Scope<&str, &i32> = Scope::new();
 
-    scope.insert("what", 32423131);
+    scope1.insert("wow", &213);
 
-    [1,2,3][2] = 2;
+    let mut please = scope1.sub_scope();
 
-    borrow(&mut scope);
-    clone(&scope);
+    {
+        please.insert("what", &23);
 
-    println!("should not change {}", scope.get(&"hello").unwrap());
+        declare(&mut scope1);
 
-    scope.insert("what", 2);
+        let borrow = please.get(&"what").unwrap();
+        println!("{}", borrow.borrow_mut());
+        
+        let borrow = scope1.get(&"what").unwrap();
+        println!("{}", borrow.borrow_mut());
 
-    println!("{}", scope.get(&"what").unwrap());
+        let borrow = please.get(&"wow").unwrap();
+        println!("{}", borrow.borrow_mut());
+    }
 }
 
-fn clone(scope: &Scope<&str, i32>) {
-    let mut cloned = scope.clone();
-    cloned.insert(&"hello", 1000000000);
-    println!("from clone {}", cloned.get(&"hello").unwrap());
-}
-
-fn borrow<'a, 'b>(scope: &mut Scope<&str, i32>) {
+fn declare(scope: &mut Scope<&str, &i32>) {
     let mut sub_scope = scope.sub_scope();
-    sub_scope.insert("lol", 3);
-    sub_scope[&"lol"];
-    println!("from parent {}", scope.get(&"hello").unwrap());
+    sub_scope.insert("what", &234);
+
+    scope.insert("what", &324);
 }
 
-#[derive(Debug, Clone)]
-pub struct Scope<'a, K: 'a + Eq + Hash, V: 'a> {
-    parent: Option<&'a Scope<'a, K, V>>,
-    map: HashMap<K, V>,
+#[derive(Clone)]
+pub struct Scope<K, V> {
+    // Do you believe in a god?
+    maps: Vec<Rc<RefCell<Vec<(K, Rc<RefCell<V>>)>>>>,
 }
 
-impl<'a, K: Eq + Hash, V> Index<&'a K> for Scope<'a, K, V>{
-    type Output = V;
-
-    #[inline]
-    fn index(&self, index: &K) -> &V {
-        self.get(index).expect("no entry found for key")
-    }
-}
-
-// impl<'a, K: Eq + Hash, V> IndexMut<&'a K> for Scope<'a, K, V> {
-//     #[inline]
-//     fn index_mut(&mut self, index: &K) -> &mut V {
-//         self.get_mut(index).expect("no entry found for key")
-//     }
-// }
-
-impl<'a, K: Eq + Hash, V> Scope<'a, K, V> {
-    fn new() -> Self {
-        Scope { parent: None, map: HashMap::new() }
+// This is what insanity looks like.
+impl<K: Eq, V> Scope<K, V> {
+    pub fn new() -> Self {
+        Scope {
+            maps: vec![Rc::new(RefCell::new(vec![]))],
+        }
     }
 
-    fn new_with_parent(parent: &'a Scope<'a, K, V>) -> Self {
-        Scope { parent: Some(parent), map: HashMap::new() }
+    pub fn sub_scope(&self) -> Self {
+        let mut maps = self.maps.clone();
+        maps.push(Rc::new(RefCell::new(vec![])));
+        Scope { maps: maps }
     }
 
-    fn sub_scope(&'a self) -> Self {
-        Scope::new_with_parent(self)
+    pub fn insert(&mut self, k: K, v: V) -> Option<Rc<RefCell<V>>> {
+        let last_index = self.maps.len() - 1;
+        let mut last_vec = self.maps[last_index].borrow_mut();
+        if let Some(index) = last_vec.iter().position(|tuple| tuple.0 == k) {
+            let tuple = mem::replace(&mut last_vec[index], (k, Rc::new(RefCell::new(v))));
+            return Some(tuple.1.clone());
+        } else {
+            last_vec.push((k, Rc::new(RefCell::new(v))));
+            return None;
+        }
     }
 
-    fn insert(&mut self, key: K, value: V) -> Option<V> {
-        self.map.insert(key, value)
-    }
-
-    fn get(&self, key: &K) -> Option<&V> {
-        let value = self.map.get(key);
-
-        if value.is_none() {
-            if let Some(parent) = self.parent {
-                let _value = parent.get(key);
-                if _value.is_some() {
-                    return _value
-                }
+    pub fn get(&self, k: &K) -> Option<Rc<RefCell<V>>> {
+        for i in (0..self.maps.len()).rev() {
+            let vec = RefCell::borrow(self.maps[i].borrow());
+            if let Some(val) = vec.iter().find(|tuple| (*tuple).0 == *k) {
+                return Some(val.1.clone());
             }
         }
-
-        value
+        None
     }
-
-    // fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-    //     let value = self.map.get_mut(key);
-
-    //     if value.is_none() {
-    //         if let Some(parent) = self.parent.as_mut() {
-    //             let _value = parent.get_mut(key);
-    //             if _value.is_some() {
-    //                 return _value
-    //             }
-    //         }
-    //     }
-
-    //     value
-    // }
 }
