@@ -1,13 +1,18 @@
-use std::collections::HashMap;
+#[macro_use]
+extern crate downcast_rs;
+
 mod scope;
 mod interpreter;
 mod ast;
-mod visitor;
-mod obj;
+mod kp_rt;
 
 fn main() {
-    scope::test();
+    interpreter::test();
+    // let mut what = <HashMap<&str, &str>>::new().apply_mut(|map| { map.insert("30", "30"); });
+
+    // what.apply_mut(|map| { map.insert("30", "30"); });
+
+    // println!("{}", what.len());
+    // obj::test();
 }
-/*
-nightly-x86_64-apple-darwin
-*/
+

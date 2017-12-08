@@ -1,39 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub fn test() {
-    let mut scope1: Scope<&str, &i32> = Scope::new();
-
-    scope1.insert("wow", &213);
-
-    let mut please = scope1.sub_scope();
-
-    {
-        please.insert("what", &23);
-
-        declare(&mut scope1);
-
-        // let borrow: &i32 = please.get(&"what").unwrap();
-        // let borrow = please.get(&"what").unwrap();
-        println!("plase[wow] {}", please.get(&"wow").unwrap());
-
-        println!("scope[what] {}", scope1.get(&"wow").unwrap());
-
-        please.insert("what", &23);
-
-        println!("please[what] = {}", please.get(&"what").unwrap());
-
-        println!("scope[what] = {}", scope1.get(&"what").unwrap());
-    }
-}
-
-fn declare(scope: &mut Scope<&str, &i32>) {
-    let mut sub_scope = scope.sub_scope();
-    sub_scope.insert("what", &234);
-
-    scope.insert("what", &10000);
-}
-
 use std::collections::HashMap;
 use std::hash::Hash;
 
