@@ -46,6 +46,17 @@ impl Interpreter {
     }
 
     pub fn visit_id(&mut self, expr: &Identifier, context: &mut Scope<&str, Box<Obj>>) -> Box<Obj> {
+        // return context.
         Box::new(Null)
+    }
+
+    pub fn visit_node(&mut self, expr: &Node) -> Box<Obj> { // maybe return Rc<Obj> instead?
+        match *expr {
+            Node::String(ref s) => Box::new(s.clone()), // &'static str instead?
+            Node::Int(i) => Box::new(i),
+            Node::Number(n) => Box::new(n),
+            Node::Boolean(b) => Box::new(b),
+            Node::Null => Box::new(Null),
+        }
     }
 }

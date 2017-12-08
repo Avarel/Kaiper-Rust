@@ -7,8 +7,4 @@ impl Obj for Null {
     fn get_kaiper_type(&self) -> &KType {
         &K_NULL_TYPE
     }
-
-    fn add(&self, other: &Obj) -> Box<Obj> {
-        unimplemented!()
-    }
 }
