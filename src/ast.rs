@@ -27,6 +27,7 @@ use std::cell::RefCell;
 // }
 
 pub enum Expr {
+    Block(Vec<Expr>),
     String(String),
     Int(i32),
     Number(f64),
@@ -34,6 +35,7 @@ pub enum Expr {
     Null,
     Add(Box<Expr>, Box<Expr>),
     Identifier(String),
+    Declare(String, Box<Expr>),
 }
 
 
