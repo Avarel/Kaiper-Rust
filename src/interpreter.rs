@@ -1,7 +1,7 @@
 use ast::*;
 use scope::Scope;
 use kp_rt::obj::Obj;
-use kp_rt::null::Null;
+use std::rc::Rc;
 
 pub fn test() {
     let mut scope1 = Scope::<&str, &i32>::new();
@@ -36,27 +36,32 @@ fn declare(scope: &mut Scope<&str, &i32>) {
     sub_scope.insert("what", &234);
 
     scope.insert("what", &10000);
+
+    //println!("{:?}", Interpreter::new().visit(&Expr::Add(Box::new(Expr::Int(3)), Box::new(Expr::Int(4))), &mut Scope::new()))
 }
 
-struct Interpreter;
+pub struct Interpreter;
+impl Interpreter {
+    fn visit<'a>(&mut self, expr: &'a Expr, context: &mut Scope<&'a str, Obj>) -> Rc<Obj> {
+        match *expr {
+            // Expr::String(ref s) => Rc::new(s.to_owned()),
+            Expr::Int(i) => Rc::new(Obj::Int(i)),
+            Expr::Number(n) => Rc::new(Obj::Number(n)),
+            // Expr::Boolean(b) => Rc::new(b),
+            Expr::Null => Rc::new(Obj::Null),
+            Expr::Identifier(ref string) => context.get(&&**string).unwrap(),
+            Expr::Add(ref rhs, ref lhs) => {
+                let right = self.visit(&*rhs, context);
+                let left = self.visit(&*lhs, context);
+                Rc::new(right.add(&left))
+            },
+            _ => unimplemented!(),
+        }
+    }
+}
 
 impl Interpreter {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Interpreter
-    }
-
-    pub fn visit_id(&mut self, expr: &Identifier, context: &mut Scope<&str, Box<Obj>>) -> Box<Obj> {
-        // return context.
-        Box::new(Null)
-    }
-
-    pub fn visit_node(&mut self, expr: &Node) -> Box<Obj> { // maybe return Rc<Obj> instead?
-        match *expr {
-            Node::String(ref s) => Box::new(s.clone()), // &'static str instead?
-            Node::Int(i) => Box::new(i),
-            Node::Number(n) => Box::new(n),
-            Node::Boolean(b) => Box::new(b),
-            Node::Null => Box::new(Null),
-        }
     }
 }

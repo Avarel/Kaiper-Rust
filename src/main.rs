@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate downcast_rs;
-
 mod scope;
 mod interpreter;
 mod ast;
@@ -14,5 +11,5 @@ fn main() {
 
     // println!("{}", what.len());
     // obj::test();
+    // println!("{}", "123".to_owned().add(&"wer".to_owned()).downcast_ref::<String>().unwrap());
 }
-
