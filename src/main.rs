@@ -3,13 +3,34 @@ mod interpreter;
 mod ast;
 mod kp_rt;
 
+use kp_rt::obj::Obj;
+use scope::Scope;
+use ast::Expr;
+use interpreter::Interpreter;
+
 fn main() {
-    interpreter::test();
-    // let mut what = <HashMap<&str, &str>>::new().apply_mut(|map| { map.insert("30", "30"); });
+    let ast = Expr::Block(vec![
+        Expr::Declare(
+            String::from("hello"),
+            Box::new(Expr::Add(Box::new(Expr::Int(1)), Box::new(Expr::Int(2)))),
+        ),
+        Expr::Declare(
+            String::from("hello"),
+            Box::new(Expr::Add(
+                Box::new(Expr::Identifier(String::from("hello"))),
+                Box::new(Expr::Int(3)),
+            )),
+        ),
+        Expr::Identifier(String::from("hello")),
+    ]);
 
-    // what.apply_mut(|map| { map.insert("30", "30"); });
+    println!("{:?}", ast);
 
-    // println!("{}", what.len());
-    // obj::test();
-    // println!("{}", "123".to_owned().add(&"wer".to_owned()).downcast_ref::<String>().unwrap());
+    let mut scope = Scope::<String, Obj>::new();
+    let result = Interpreter::new().visit(&ast, &mut scope);
+
+    match result {
+        Ok(ans) => println!("{}", ans),
+        Err(e) => println!("{}", e),
+    }
 }

@@ -10,7 +10,9 @@ pub struct Scope<K, V> {
 
 impl<K: Eq + Hash, V> Scope<K, V> {
     pub fn new() -> Self {
-        Scope { maps: vec![Rc::new(RefCell::new(HashMap::new()))] }
+        Scope {
+            maps: vec![Rc::new(RefCell::new(HashMap::new()))],
+        }
     }
 
     pub fn sub_scope(&self) -> Self {

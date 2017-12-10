@@ -1,4 +1,4 @@
 [package]
-name = "Kaiper-Rust"
+name = "kaiper_rust"
 version = "0.1.0"
 authors = ["Avarel <avarelpm@gmail.com>"]
