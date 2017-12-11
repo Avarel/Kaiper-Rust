@@ -2,6 +2,8 @@ use ast::*;
 use scope::Scope;
 use kp_rt::obj::Obj;
 use std::rc::Rc;
+use std::cell::RefCell;
+use std;
 
 pub struct Interpreter;
 impl Interpreter {
@@ -29,20 +31,44 @@ impl Interpreter {
                 Ok(Rc::new(right.add(&left)?))
             }
 
-            Expr::Block(ref vec) => {
-                let mut context = context.sub_scope();
-                vec.iter()
-                    .map(|expr| self.visit(expr, &mut context))
-                    .last()
-                    .unwrap_or_else(|| Ok(Rc::new(Obj::Null))) // return last result
+            Expr::Block(ref expr) => self.visit(expr, &mut context.sub_scope()),
+
+            Expr::Stmts(ref vec) => {
+                let mut last = Rc::new(Obj::Null);
+                for expr in vec {
+                    last = self.visit(expr, context)?;
+                }
+                Ok(last)
             }
 
             Expr::Declare(ref ident, ref expr) => {
+                if context.map_contains(ident) {
+                    return Err(format!("Variable {} is already defined", ident));
+                }
+
                 let value = self.visit(expr, context)?;
                 context.insert(
                     ident.to_owned(),
                     Rc::try_unwrap(value).map_err(|_| "Internal error")?,
                 );
+                Ok(Rc::new(Obj::Null))
+            }
+
+            Expr::Assign(ref ident, ref expr) => {
+                if !context.any_contains(ident) {
+                    return Err(format!("Variable {} has not been declared", ident));
+                }
+
+                let value = self.visit(expr, context)?;
+                context
+                    .maps
+                    .iter()
+                    .rev()
+                    .map(|rc| RefCell::borrow_mut(rc))
+                    .find(|map| map.contains_key(ident))
+                    .unwrap()
+                    .insert(ident.to_owned(), value);
+
                 Ok(Rc::new(Obj::Null))
             }
 

@@ -9,12 +9,12 @@ use ast::Expr;
 use interpreter::Interpreter;
 
 fn main() {
-    let ast = Expr::Block(vec![
+    let ast = Expr::Stmts(vec![
         Expr::Declare(
             String::from("hello"),
             Box::new(Expr::Add(Box::new(Expr::Int(1)), Box::new(Expr::Int(2)))),
         ),
-        Expr::Declare(
+        Expr::Assign(
             String::from("hello"),
             Box::new(Expr::Add(
                 Box::new(Expr::Identifier(String::from("hello"))),
@@ -30,7 +30,7 @@ fn main() {
     let result = Interpreter::new().visit(&ast, &mut scope);
 
     match result {
-        Ok(ans) => println!("{}", ans),
-        Err(e) => println!("{}", e),
+        Ok(ans) => println!("Ans: {}", ans),
+        Err(e) => println!("Err: {}", e),
     }
 }
