@@ -1,35 +1,43 @@
 use kp_rt::obj::Obj;
 
-// how to generify or do something about this redundancy
-
-pub fn add(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i + o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 + o)),
-        _ => Err(String::from("Type mismatch")),
+impl Obj for i32 {
+    fn add(&self, other: &Obj) -> Result<Box<Obj>, String> {
+        if let Some(int) = other.downcast_ref::<i32>() {
+            Ok(Box::new(self + int))
+        } else if let Some (num) = other.downcast_ref::<f64>() {
+            Ok(Box::new(*self as f64 + num))
+        } else {
+            Err(String::from("unimplemented"))
+        }
     }
-}
 
-pub fn sub(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i - o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 - o)),
-        _ => Err(String::from("Type mismatch")),
+    fn sub(&self, other: &Obj) -> Result<Box<Obj>, String> {
+        if let Some(int) = other.downcast_ref::<i32>() {
+            Ok(Box::new(self - int))
+        } else if let Some (num) = other.downcast_ref::<f64>() {
+            Ok(Box::new(*self as f64 - num))
+        } else {
+            Err(String::from("unimplemented"))
+        }
     }
-}
 
-pub fn mul(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i * o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 * o)),
-        _ => Err(String::from("Type mismatch")),
+    fn mul(&self, other: &Obj) -> Result<Box<Obj>, String> {
+        if let Some(int) = other.downcast_ref::<i32>() {
+            Ok(Box::new(self * int))
+        } else if let Some (num) = other.downcast_ref::<f64>() {
+            Ok(Box::new(*self as f64 * num))
+        } else {
+            Err(String::from("unimplemented"))
+        }
     }
-}
 
-pub fn div(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i / o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 / o)),
-        _ => Err(String::from("Type mismatch")),
+    fn div(&self, other: &Obj) -> Result<Box<Obj>, String> {
+        if let Some(int) = other.downcast_ref::<i32>() {
+            Ok(Box::new(self / int))
+        } else if let Some (num) = other.downcast_ref::<f64>() {
+            Ok(Box::new(*self as f64 / num))
+        } else {
+            Err(String::from("unimplemented"))
+        }
     }
 }

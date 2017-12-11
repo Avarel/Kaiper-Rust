@@ -1,23 +1,23 @@
 use ast::*;
 use scope::Scope;
-use kp_rt::obj::Obj;
+use kp_rt::obj::*;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std;
+use std::borrow::Borrow;
 
 pub struct Interpreter;
 impl Interpreter {
     pub fn visit(
         &mut self,
         expr: &Expr,
-        context: &mut Scope<String, Obj>,
-    ) -> Result<Rc<Obj>, String> {
+        context: &mut Scope<String, Box<Obj>>,
+    ) -> Result<Rc<Box<Obj>>, String> {
         match *expr {
-            Expr::String(ref s) => Ok(Rc::new(Obj::String(s.to_owned()))),
-            Expr::Int(i) => Ok(Rc::new(Obj::Int(i))),
-            Expr::Number(n) => Ok(Rc::new(Obj::Number(n))),
-            Expr::Boolean(b) => Ok(Rc::new(Obj::Boolean(b))),
-            Expr::Null => Ok(Rc::new(Obj::Null)),
+            Expr::String(ref s) => Ok(Rc::new(Box::new(s.to_owned()))),
+            Expr::Int(i) => Ok(Rc::new(Box::new(i))),
+            Expr::Number(n) => Ok(Rc::new(Box::new(n))),
+            Expr::Boolean(b) => Ok(Rc::new(Box::new(b))),
+            Expr::Null => Ok(Rc::new(Box::new(Null))),
 
             Expr::Identifier(ref ident) => match context.get(ident) {
                 Some(i) => Ok(i),
@@ -25,14 +25,13 @@ impl Interpreter {
             },
 
             Expr::BinaryOp(ref op, ref rhs, ref lhs) => {
-                // TODO add more operators
-                let right = self.visit(rhs, context)?;
-                let left = self.visit(lhs, context)?;
+                let right = &*self.visit(rhs, context)?;
+                let left = &*self.visit(lhs, context)?;
                 Ok(Rc::new(match *op {
-                    BinaryOp::Add => right.add(&left)?,
-                    BinaryOp::Sub => right.sub(&left)?,
-                    BinaryOp::Mul => right.mul(&left)?,
-                    BinaryOp::Div => right.div(&left)?,
+                    BinaryOp::Add => right.add(left.borrow())?,
+                    BinaryOp::Sub => right.sub(left.borrow())?,
+                    BinaryOp::Mul => right.mul(left.borrow())?,
+                    BinaryOp::Div => right.div(left.borrow())?,
                     _ => return Err(format!("Unimplemented operation {:?}", op)),
                 }))
             }
@@ -40,8 +39,11 @@ impl Interpreter {
             Expr::Block(ref expr) => self.visit(expr, &mut context.sub_scope()),
 
             Expr::Stmts(ref vec) => {
-                let mut last = Rc::new(Obj::Null);
+                let mut last: Rc<Box<Obj>> = Rc::new(Box::new(Null));
                 for expr in vec {
+                    if let Expr::Return(ref expr) = *expr {
+                        return Ok(self.visit(expr, context)?)
+                    }
                     last = self.visit(expr, context)?;
                 }
                 Ok(last)
@@ -57,7 +59,7 @@ impl Interpreter {
                     ident.to_owned(),
                     Rc::try_unwrap(value).map_err(|_| "Internal error")?,
                 );
-                Ok(Rc::new(Obj::Null))
+                Ok(Rc::new(Box::new(Null)))
             }
 
             Expr::Assign(ref ident, ref expr) => {
@@ -66,8 +68,7 @@ impl Interpreter {
                 }
 
                 let value = self.visit(expr, context)?;
-                context
-                    .maps
+                context.maps
                     .iter()
                     .rev()
                     .map(|rc| RefCell::borrow_mut(rc))
@@ -75,7 +76,7 @@ impl Interpreter {
                     .unwrap()
                     .insert(ident.to_owned(), value);
 
-                Ok(Rc::new(Obj::Null))
+                Ok(Rc::new(Box::new(Null)))
             }
 
             _ => Err(String::from("Unimplemented instruction")),
