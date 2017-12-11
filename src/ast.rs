@@ -7,8 +7,16 @@ pub enum Expr {
     Number(f64),
     Boolean(bool),
     Null,
-    Add(Box<Expr>, Box<Expr>),
+    BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
     Identifier(String),
     Declare(String, Box<Expr>),
     Assign(String, Box<Expr>),
+}
+
+#[derive(Debug)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Div,
+    Mul,
 }

@@ -1,18 +1,42 @@
+
+use kp_rt::*;
+
 pub enum Obj {
     Int(i32),
     Number(f64),
     Boolean(bool),
     String(String),
-    // NativeFunction(Box<Fn() -> ()>),
     Null,
 }
+// NativeFunction(Box<Fn() -> ()>),
 
-impl Obj {
+impl Obj { // Will use std::ops later
     pub fn add(&self, other: &Obj) -> Result<Obj, String> {
         match *self {
-            Obj::Int(i) => int_add(i, other),
-            Obj::Number(n) => num_add(n, other),
-            Obj::String(ref s) => str_add(s, other),
+            Obj::Int(i) => int::add(i, other),
+            Obj::Number(n) => num::add(n, other),
+            Obj::String(ref s) => string::add(s, other),
+            _ => Err(String::from("unimplemented")),
+        }
+    }
+
+    pub fn sub(&self, other: &Obj) -> Result<Obj, String> {
+        match *self {
+            Obj::Int(i) => int::sub(i, other),
+            _ => Err(String::from("unimplemented")),
+        }
+    }
+
+    pub fn mul(&self, other: &Obj) -> Result<Obj, String> {
+        match *self {
+            Obj::Int(i) => int::mul(i, other),
+            _ => Err(String::from("unimplemented")),
+        }
+    }
+
+    pub fn div(&self, other: &Obj) -> Result<Obj, String> {
+        match *self {
+            Obj::Int(i) => int::div(i, other),
             _ => Err(String::from("unimplemented")),
         }
     }
@@ -34,26 +58,4 @@ impl fmt::Display for Obj {
             }
         )
     }
-}
-
-fn int_add(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i + o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 + o)),
-        _ => Err(String::from("Type mismatch")),
-    }
-}
-
-fn num_add(n: f64, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Number(n + o as f64)),
-        Obj::Number(o) => Ok(Obj::Number(n + o)),
-        _ => Err(String::from("Type mismatch")),
-    }
-}
-
-fn str_add(s: &String, other: &Obj) -> Result<Obj, String> {
-    let mut buf = s.to_owned();
-    buf.push_str(&other.to_string());
-    Ok(Obj::String(buf))
 }

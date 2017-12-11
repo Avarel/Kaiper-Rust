@@ -24,11 +24,17 @@ impl Interpreter {
                 None => Err(format!("Undefined variable {}", ident)),
             },
 
-            Expr::Add(ref rhs, ref lhs) => {
+            Expr::BinaryOp(ref op, ref rhs, ref lhs) => {
                 // TODO add more operators
                 let right = self.visit(rhs, context)?;
                 let left = self.visit(lhs, context)?;
-                Ok(Rc::new(right.add(&left)?))
+                Ok(Rc::new(match *op {
+                    BinaryOp::Add => right.add(&left)?,
+                    BinaryOp::Sub => right.sub(&left)?,
+                    BinaryOp::Mul => right.mul(&left)?,
+                    BinaryOp::Div => right.div(&left)?,
+                    _ => return Err(format!("Unimplemented operation {:?}", op)),
+                }))
             }
 
             Expr::Block(ref expr) => self.visit(expr, &mut context.sub_scope()),
