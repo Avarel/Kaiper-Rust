@@ -1,45 +1,23 @@
-use downcast_rs::*;
-use kp_rt::*;
+use downcast_rs::Downcast;
 
-// pub enum Obj {
-//     Int(i32),
-//     Number(f64),
-//     Boolean(bool),
-//     String(String),
-//     Null,
-// }
-
-// NativeFunction(Box<Fn() -> ()>),
-
-use std::fmt;
-pub trait Obj: fmt::Display + Downcast {
-    fn add(&self, other: &Obj) -> Result<Box<Obj>, String> {
-        Err(String::from("unimplemented"))
-    }
-
-    fn sub(&self, other: &Obj) -> Result<Box<Obj>, String> {
-        Err(String::from("unimplemented"))
-    }
-
-    fn mul(&self, other: &Obj) -> Result<Box<Obj>, String> {
-        Err(String::from("unimplemented"))
-    }
-
-    fn div(&self, other: &Obj) -> Result<Box<Obj>, String> {
-        Err(String::from("unimplemented"))
-    }
+macro_rules! stub_op {
+    ($id: ident) => (stub_op!($id, &Obj););
+    ($id: ident, $t: ty) => {
+        fn $id(&self, _: $t) -> Result<Box<Obj>, String> {
+            Err(String::from("unimplemented"))
+        }
+    };
 }
+
+use std::fmt::Display;
+pub trait Obj: Display + Downcast {
+    stub_op!(add);
+    stub_op!(sub);
+    stub_op!(mul);
+    stub_op!(div);
+    // stub_op!(shl);
+    // stub_op!(shr);
+    stub_op!(invoke, Vec<&Obj>);
+}
+
 impl_downcast!(Obj);
-
-impl Obj for bool {
-
-}
-
-pub struct Null;
-impl Obj for Null {}
-
-impl fmt::Display for Null {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "null")
-    }
-}

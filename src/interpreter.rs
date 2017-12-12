@@ -1,6 +1,7 @@
 use ast::*;
 use scope::Scope;
-use kp_rt::obj::*;
+use kp_rt::obj::Obj;
+use kp_rt::null::Null;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::borrow::Borrow;
@@ -10,7 +11,7 @@ impl Interpreter {
     pub fn visit(
         &mut self,
         expr: &Expr,
-        context: &mut Scope<String, Box<Obj>>,
+        context: &Scope<String, Box<Obj>>,
     ) -> Result<Rc<Box<Obj>>, String> {
         match *expr {
             Expr::String(ref s) => Ok(Rc::new(Box::new(s.to_owned()))),
@@ -42,7 +43,7 @@ impl Interpreter {
                 let mut last: Rc<Box<Obj>> = Rc::new(Box::new(Null));
                 for expr in vec {
                     if let Expr::Return(ref expr) = *expr {
-                        return Ok(self.visit(expr, context)?)
+                        return Ok(self.visit(expr, context)?);
                     }
                     last = self.visit(expr, context)?;
                 }
@@ -68,7 +69,8 @@ impl Interpreter {
                 }
 
                 let value = self.visit(expr, context)?;
-                context.maps
+                context
+                    .maps
                     .iter()
                     .rev()
                     .map(|rc| RefCell::borrow_mut(rc))

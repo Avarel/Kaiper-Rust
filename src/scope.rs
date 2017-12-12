@@ -32,7 +32,7 @@ impl<K: Eq + Hash, V> Scope<K, V> {
     }
 
     /// Insert a value into the immediate scope.
-    pub fn insert(&mut self, k: K, v: V) -> Option<Rc<V>> {
+    pub fn insert(&self, k: K, v: V) -> Option<Rc<V>> {
         self.hash_map_mut().insert(k, Rc::new(v))
     }
 
@@ -67,8 +67,9 @@ impl<K: Eq + Hash, V> Scope<K, V> {
         RefCell::borrow(self.maps.last().unwrap())
     }
 
+    // FOOL, you've never seen hacks like THESE
     /// Returns a mutable reference to the immediate HashMap.
-    pub fn hash_map_mut(&mut self) -> RefMut<HashMap<K, Rc<V>>> {
+    pub fn hash_map_mut(&self) -> RefMut<HashMap<K, Rc<V>>> {
         RefCell::borrow_mut(self.maps.last().unwrap())
     }
 }
