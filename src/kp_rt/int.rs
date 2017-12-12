@@ -1,35 +1,22 @@
 use kp_rt::obj::Obj;
 
-// how to generify or do something about this redundancy
-
-pub fn add(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i + o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 + o)),
-        _ => Err(String::from("Type mismatch")),
-    }
+macro_rules! impl_op { // TODO make another macro that reduce further redundancy
+    ($id: ident, $token: tt) => {
+        fn $id(&self, other: &Obj) -> Result<Box<Obj>, String> {
+            if let Some(int) = other.downcast_ref::<i32>() {
+                Ok(Box::new(self $token int))
+            } else if let Some (num) = other.downcast_ref::<f64>() {
+                Ok(Box::new(*self as f64 $token num))
+            } else {
+                Err(String::from("unimplemented"))
+            }
+        }
+    };
 }
 
-pub fn sub(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i - o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 - o)),
-        _ => Err(String::from("Type mismatch")),
-    }
-}
-
-pub fn mul(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i * o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 * o)),
-        _ => Err(String::from("Type mismatch")),
-    }
-}
-
-pub fn div(i: i32, other: &Obj) -> Result<Obj, String> {
-    match *other {
-        Obj::Int(o) => Ok(Obj::Int(i / o)),
-        Obj::Number(o) => Ok(Obj::Number(i as f64 / o)),
-        _ => Err(String::from("Type mismatch")),
-    }
+impl Obj for i32 {
+    impl_op!(add, +);
+    impl_op!(sub, -);
+    impl_op!(mul, *);
+    impl_op!(div, /);
 }
