@@ -6,6 +6,7 @@ mod interpreter;
 mod ast;
 mod kp_rt;
 mod err;
+mod lexer;
 
 #[macro_use]
 mod macros;
@@ -22,9 +23,14 @@ fn main() {
     // hello = hello + 3
     // return hello
 
+    match lexer::lexer::Lexer::new("hello + there").parse() {
+        Ok(ans) => println!("{:?}", ans),
+        Err(e) => println!("Err: {}", e),
+    }
+
     let ast = stmts! {
         expr!(let hello = expr!(Expr::Int(1), BinaryOp::Add, Expr::Int(2)));
-        expr!(hello = expr!(Expr::String(String::from("The answer is ")), BinaryOp::Add, expr!(hello)));
+        expr!(hello = expr!(Expr::Int(3), BinaryOp::Add, expr!(hello)));
         expr!(hello)
     };
 
