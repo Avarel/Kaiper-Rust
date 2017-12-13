@@ -31,7 +31,28 @@ impl<'a> Tokenizer<'a> {
                 '-' => list.push(Token::Minus),
                 '*' => list.push(Token::Asterisk),
                 '/' => list.push(Token::Slash),
-                '=' => list.push(Token::Assign), // TODO EQUALITY
+                '.' => list.push(Token::Dot),
+                '=' => match self.stream.peek() {
+                    Some(&'=') => {
+                        list.push(Token::Eq);
+                        self.stream.next();
+                    }
+                    _ => list.push(Token::Assign),
+                }
+                '<' => match self.stream.peek() {
+                    Some(&'=') => {
+                        list.push(Token::Lte);
+                        self.stream.next();
+                    }
+                    _ => list.push(Token::Lt),
+                }
+                '>' => match self.stream.peek() {
+                    Some(&'=') => {
+                        list.push(Token::Gt);
+                        self.stream.next();
+                    }
+                    _ => list.push(Token::Gte),
+                }
                 'A'...'Z' | 'a'...'z' | '_' => list.push(self.name(c)),
                 '0'...'9' => list.push(self.number(c)?),
                 _ => return Err(format!("Illegal character {}", c)),
@@ -65,9 +86,22 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn number(&mut self, c: char) -> Result<Token, String> {
-        // TODO add 0x and 0b
-
         let mut buffer = String::new();
+
+        // if c == '0' {
+        //     match self.stream.next() {
+        //         Some('x') => {
+                    
+        //         }
+        //         Some('b') => {
+
+        //         }
+        //         _ => {
+        //             self.num_buffer_fill(&mut buffer);
+        //         }
+        //     }
+        // }
+
         buffer.push(c);
 
         while let Some(&c) = self.stream.peek() {

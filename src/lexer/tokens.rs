@@ -27,7 +27,11 @@ pub enum Token {
     Caret,
     Percent,
 
-    
+    Eq,
+    Gte,
+    Gt,
+    Lt,
+    Lte,    
 
     Dot,
 }
