@@ -4,17 +4,16 @@ extern crate downcast_rs;
 mod scope;
 mod interpreter;
 mod ast;
-mod kp_rt;
-mod err;
+mod rt;
 mod lexer;
 
 #[macro_use]
 mod macros;
 
-use kp_rt::obj::Obj;
+use rt::obj::Obj;
 use scope::Scope;
 use ast::{BinaryOp, Expr};
-use interpreter::Interpreter;
+use interpreter::interpr::Interpreter;
 
 fn main() {
     // This is basically:
@@ -23,10 +22,10 @@ fn main() {
     // hello = hello + 3
     // return hello
 
-    match lexer::lexer::Lexer::new("hello + there").parse() {
-        Ok(ans) => println!("{:?}", ans),
-        Err(e) => println!("Err: {}", e),
-    }
+    // match lexer::tokenizer::Tokenizer::new("let hello = 1 + 3.2e1").parse() {
+    //     Ok(ans) => println!("{:?}", ans),
+    //     Err(e) => println!("Err: {}", e),
+    // }
 
     let ast = stmts! {
         expr!(let hello = expr!(Expr::Int(1), BinaryOp::Add, Expr::Int(2)));
@@ -41,6 +40,6 @@ fn main() {
 
     match result {
         Ok(ans) => println!("Ans: {}", ans),
-        Err(e) => println!("Err: {}", e),
+        Err(e) => println!("Err: {:?}", e),
     }
 }

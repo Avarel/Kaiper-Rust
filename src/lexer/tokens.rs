@@ -14,6 +14,7 @@ pub enum Token {
     Boolean(bool),
     String(String),
     Identifier(String),
+    Null,
 
     Let,
     Assign,
