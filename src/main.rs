@@ -3,27 +3,41 @@ extern crate downcast_rs;
 extern crate linefeed;
 
 mod scope;
-mod interpreter;
 mod ast;
 mod rt;
 mod lexer;
+mod vm;
 
 #[macro_use]
 mod macros;
 
 use rt::obj::Obj;
 use scope::Scope;
-use ast::{BinaryOp, Expr};
-use interpreter::interpr::Interpreter;
+use vm::inst::Inst;
+use vm::VM;
 
 fn main() {
-    // This is basically:
-    //
-    // let hello = 1 + 2
-    // hello = hello + 3
-    // return hello
-    // loop_read();
+    let inst = vec![
+        Inst::PushInt(1), 
+        Inst::PushInt(2), 
+        Inst::Add,
+        // get_store("lol")
+    ];
+
+    match VM::new(inst).run() {
+        Ok(ans) => {
+            println!("Ans: {}", ans)
+        }
+        Err(msg) => {
+            println!("{}", msg)
+        }
+    }
 }
+
+// fn get_store(id: &str) -> Inst {
+//     let name = String::from(id);
+//     Inst::Store(name.as_ref())
+// }
 
 // lets instead go for a stack-based VM
 // explicit scoping instruction or implicit naming
@@ -59,43 +73,24 @@ fn main() {
 //10 invoke 1
 //11 PROGRAM END
 
-fn test_intrpr() {
-    let ast = stmts! {
-        expr!(let hello = expr!(Expr::Int(1), BinaryOp::Add, Expr::Int(2)));
-        expr!(hello = expr!(Expr::Int(3), BinaryOp::Add, expr!(hello)));
-        expr!(hello)
-    };
+// use linefeed::{ReadResult, Reader};
+// fn loop_read() {
+//     let mut reader = Reader::new("kaiper").unwrap();
+//     reader.set_prompt(">>> ");
 
-    println!("{:?}", ast);
-
-    let mut scope = Scope::<String, Box<Obj>>::new();
-    let result = Interpreter::new().visit(&ast, &mut scope);
-
-    match result {
-        Ok(ans) => println!("Ans: {}", ans),
-        Err(e) => println!("Err: {:?}", e),
-    }
-}
-
-
-use linefeed::{ReadResult, Reader};
-fn loop_read() {
-    let mut reader = Reader::new("kaiper").unwrap();
-    reader.set_prompt(">>> ");
-
-    loop {
-        if let Ok(ReadResult::Input(line)) = reader.read_line() {
-            match line.as_ref() {
-                "quit" => {
-                    break
-                }
-                _ => {
-                    match lexer::tokenizer::Tokenizer::new(line.as_ref()).parse() {
-                        Ok(ans) => println!("{:?}", ans),
-                        Err(e) => println!("Err: {}", e),
-                    }
-                }
-            }
-        }
-    }
-}
+//     loop {
+//         if let Ok(ReadResult::Input(line)) = reader.read_line() {
+//             match line.as_ref() {
+//                 "quit" => {
+//                     break
+//                 }
+//                 _ => {
+//                     match lexer::tokenizer::Tokenizer::new(line.as_ref()).parse() {
+//                         Ok(ans) => println!("{:?}", ans),
+//                         Err(e) => println!("Err: {}", e),
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
