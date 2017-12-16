@@ -5,4 +5,4 @@ authors = ["Avarel <avarelpm@gmail.com>"]
 
 [dependencies]
 downcast-rs = "1.0.0"
-linefeed = "0.3"
+rustyline = "1.0.0"

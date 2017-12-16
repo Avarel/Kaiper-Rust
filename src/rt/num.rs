@@ -1,12 +1,13 @@
 use rt::obj::Obj;
+use std::rc::Rc;
 
 macro_rules! impl_op {
     ($id: ident, $token: tt) => {
-        fn $id(&self, other: &Obj) -> Result<Box<Obj>, String> {
+        fn $id(&self, other: &Obj) -> Result<Rc<Obj>, String> {
             if let Some(int) = other.downcast_ref::<i32>() {
-                Ok(Box::new(self $token *int as f64))
+                Ok(Rc::new(self $token *int as f64))
             } else if let Some (num) = other.downcast_ref::<f64>() {
-                Ok(Box::new(self $token num))
+                Ok(Rc::new(self $token num))
             } else {
                 Err(String::from("unimplemented"))
             }

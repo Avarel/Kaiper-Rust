@@ -34,4 +34,5 @@ pub enum Token {
     Lte,    
 
     Dot,
+    Comma,
 }

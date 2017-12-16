@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate downcast_rs;
-extern crate linefeed;
+extern crate rustyline;
 
 mod scope;
 mod ast;
@@ -17,19 +17,61 @@ use vm::inst::Inst;
 use vm::VM;
 
 fn main() {
+    // let hello = 1 + 2
+    // hello = hello + 7
+    // yield 1
+    // yield 2
+    // hello
+
+    // let inst = vec![
+    //     Inst::PushInt(1), 
+    //     Inst::PushInt(2), 
+    //     Inst::Add,
+    //     Inst::Store(String::from("hello")),
+    //     Inst::Get(String::from("hello")),
+    //     Inst::PushInt(7),
+    //     Inst::Add,
+    //     Inst::Store(String::from("hello")),
+    //     Inst::PushInt(1),
+    //     Inst::Yield,
+    //     Inst::PushInt(2),
+    //     Inst::Yield,
+    //     Inst::Get(String::from("hello")),
+    // ];
+
+    // let counter = 0
+    // while true {
+    //    yield counter
+    //    counter = counter + 1 
+    // }
+    loop_read();
+
     let inst = vec![
-        Inst::PushInt(1), 
-        Inst::PushInt(2), 
+        Inst::PushInt(0),
+        Inst::Store(String::from("counter")),
+        Inst::Get(String::from("counter")),
+        Inst::Yield,
+        Inst::Get(String::from("counter")),
+        Inst::PushInt(1),
         Inst::Add,
-        // get_store("lol")
+        Inst::Store(String::from("counter")),
+        Inst::Goto(2)
     ];
 
-    match VM::new(inst).run() {
-        Ok(ans) => {
-            println!("Ans: {}", ans)
-        }
-        Err(msg) => {
-            println!("{}", msg)
+    let mut vm = VM::new(inst);
+    for _ in 0..10000 {
+        match vm.run() {
+            Ok(Some(ans)) => {
+                println!("Ans: {}", ans)
+            }
+            Ok(None) => {
+                println!("Execution finished");
+                break
+            }
+            Err(msg) => {
+                println!("{}", msg);
+                break
+            }
         }
     }
 }
@@ -73,24 +115,21 @@ fn main() {
 //10 invoke 1
 //11 PROGRAM END
 
-// use linefeed::{ReadResult, Reader};
-// fn loop_read() {
-//     let mut reader = Reader::new("kaiper").unwrap();
-//     reader.set_prompt(">>> ");
+use rustyline::Editor;
+use rustyline::error::ReadlineError;
 
-//     loop {
-//         if let Ok(ReadResult::Input(line)) = reader.read_line() {
-//             match line.as_ref() {
-//                 "quit" => {
-//                     break
-//                 }
-//                 _ => {
-//                     match lexer::tokenizer::Tokenizer::new(line.as_ref()).parse() {
-//                         Ok(ans) => println!("{:?}", ans),
-//                         Err(e) => println!("Err: {}", e),
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
+fn loop_read() {
+    let mut rl = Editor::<()>::new();
+    loop {
+        match rl.readline(">>> ") {
+            Ok(line) => {
+                println!("{:?}", lexer::tokenizer::Tokenizer::new(&line).parse());
+            }
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
+            Err(err) => {
+                println!("{}", err);
+                break
+            }
+        }
+    }
+}

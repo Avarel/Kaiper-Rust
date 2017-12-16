@@ -1,9 +1,10 @@
 use downcast_rs::Downcast;
+use std::rc::Rc;
 
 macro_rules! stub_op {
     ($id: ident) => (stub_op!($id, &Obj););
     ($id: ident, $t: ty) => {
-        fn $id(&self, _: $t) -> Result<Box<Obj>, String> {
+        fn $id(&self, _: $t) -> Result<Rc<Obj>, String> {
             Err(String::from("unimplemented"))
         }
     };
@@ -18,6 +19,10 @@ pub trait Obj: Display + Downcast {
     // stub_op!(shl);
     // stub_op!(shr);
     stub_op!(invoke, Vec<&Obj>);
+
+    fn truth_value(&self) -> bool {
+        false
+    }
 }
 
 impl_downcast!(Obj);

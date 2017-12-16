@@ -1,12 +1,13 @@
 use rt::obj::Obj;
+use std::rc::Rc;
 
 macro_rules! impl_op { // TODO make another macro that reduce further redundancy
     ($id: ident, $token: tt) => {
-        fn $id(&self, other: &Obj) -> Result<Box<Obj>, String> {
+        fn $id(&self, other: &Obj) -> Result<Rc<Obj>, String> {
             if let Some(int) = other.downcast_ref::<i32>() {
-                Ok(Box::new(self $token int))
+                Ok(Rc::new(self $token int))
             } else if let Some (num) = other.downcast_ref::<f64>() {
-                Ok(Box::new(*self as f64 $token num))
+                Ok(Rc::new(*self as f64 $token num))
             } else {
                 Err(String::from("unimplemented"))
             }
