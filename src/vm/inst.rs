@@ -26,5 +26,5 @@ pub enum Inst {
     Div,
 
     // Goto location
-    Goto(usize),
+    Jump(usize),
 }

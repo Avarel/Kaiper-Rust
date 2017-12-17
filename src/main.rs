@@ -14,7 +14,7 @@ mod macros;
 use rt::obj::Obj;
 use scope::Scope;
 use vm::inst::Inst;
-use vm::VM;
+use vm::{VM, VMContext};
 
 fn main() {
     // let hello = 1 + 2
@@ -55,12 +55,13 @@ fn main() {
         Inst::PushInt(1),
         Inst::Add,
         Inst::Store(String::from("counter")),
-        Inst::Goto(2)
+        Inst::Jump(2)
     ];
 
     let mut vm = VM::new(inst);
+    let mut cont = VMContext::default();
     for _ in 0..10000 {
-        match vm.run() {
+        match vm.run_continuation(&mut cont) {
             Ok(Some(ans)) => {
                 println!("Ans: {}", ans)
             }
@@ -69,7 +70,7 @@ fn main() {
                 break
             }
             Err(msg) => {
-                println!("{}", msg);
+                println!("{:?}", msg);
                 break
             }
         }
@@ -123,7 +124,15 @@ fn loop_read() {
     loop {
         match rl.readline(">>> ") {
             Ok(line) => {
-                println!("{:?}", lexer::tokenizer::Tokenizer::new(&line).parse());
+                match lexer::tokenizer::Tokenizer::new(&line).parse() {
+                    Ok(list) => {
+                        println!("Tokens: {:?}", list)
+                    }
+                    Err(err) => {
+                        println!("Lexer err: {}", err)
+                    }
+                }
+                
             }
             Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
             Err(err) => {
