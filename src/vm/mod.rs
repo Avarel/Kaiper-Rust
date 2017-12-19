@@ -3,7 +3,7 @@ pub mod err;
 
 use vm::inst::Inst;
 use vm::err::VMErr;
-use scope::Scope;
+use scope::StackFrames;
 use rt::obj::Obj;
 use rt::null::Null;
 use std::rc::Rc;
@@ -16,7 +16,7 @@ pub struct VMContext {
     pub head: usize,
     pub end: Option<usize>,
     pub stack: Vec<Rc<Obj>>,
-    pub heap: Scope
+    pub frames: StackFrames
 }
 
 impl Default for VMContext {
@@ -25,7 +25,7 @@ impl Default for VMContext {
             head: 0,
             end: None,
             stack: Vec::new(),
-            heap: Scope::new(),
+            frames: StackFrames::new(),
         }
     }
 }
@@ -40,67 +40,67 @@ impl VM {
         self.run_context(&mut VMContext::default())
     }
 
-    pub fn run_context(&mut self, c: &mut VMContext) -> Answer {
-        let end = c.end.unwrap_or_else(|| self.inst.len());
-        while c.head < end {
-            if self.execute(&mut c.head, &mut c.stack, &mut c.heap)? {
+    pub fn run_context(&mut self, ctx: &mut VMContext) -> Answer {
+        let end = ctx.end.unwrap_or_else(|| self.inst.len());
+        while ctx.head < end {
+            if self.execute(ctx)? {
                 break;
             }
         }
 
-        Ok(c.stack.pop())
+        Ok(ctx.stack.pop())
     }
 
     // Result<false> if the execution should continue
     // Result<true> if the execution should suspend
     fn execute(
         &mut self,
-        head: &mut usize,
-        stack: &mut Vec<Rc<Obj>>,
-        heap: &mut Scope,
+        ctx: &mut VMContext
     ) -> Result<bool, VMErr> {
         macro_rules! op_impl {
-            ($stack: ident, $id: ident, $vm: ident) => {{
+            ($stack: expr, $id: ident, $vm: ident) => {{
                 let rhs = $stack.pop().unwrap();
                 let lhs = &*$stack.pop().unwrap();
                 $stack.push(Obj::$id(lhs, rhs, $vm).map_err(|e| VMErr::RtErr(e))?);
             }};
         }
 
-        let inst = self.inst[*head].clone(); // Thinking
-        *head += 1;
+        let inst = self.inst[ctx.head].clone(); // Thinking
+        ctx.head += 1;
 
         use vm::inst::Inst::*;
         match inst {
-            PushInt(i) => stack.push(Rc::new(i)),
-            PushNum(n) => stack.push(Rc::new(n)),
-            PushNull => stack.push(Rc::new(Null)),
-            PushBool(b) => stack.push(Rc::new(b)),
-            PushStr(ref s) => stack.push(Rc::new(s.to_owned())),
-            Add => op_impl!(stack, add, self),
-            Sub => op_impl!(stack, sub, self),
-            Mul => op_impl!(stack, mul, self),
-            Div => op_impl!(stack, div, self),
-            Get(ref id) => match heap.get(id) {
-                Some(rc) => stack.push(rc),
+            LoadInt(i) => ctx.stack.push(Rc::new(i)),
+            LoadNum(n) => ctx.stack.push(Rc::new(n)),
+            LoadNull => ctx.stack.push(Rc::new(Null)),
+            LoadBool(b) => ctx.stack.push(Rc::new(b)),
+            LoadStr(ref s) => ctx.stack.push(Rc::new(s.to_owned())),
+            Add => op_impl!(ctx.stack, add, self),
+            Sub => op_impl!(ctx.stack, sub, self),
+            Mul => op_impl!(ctx.stack, mul, self),
+            Div => op_impl!(ctx.stack, div, self),
+            Get(ref id) => match ctx.frames.get(id) {
+                Some(rc) => ctx.stack.push(rc),
                 None => return Err(VMErr::UndefinedVariable),
             },
             Store(ref id) => {
-                let item = stack.pop().unwrap();
-                heap.insert_rc(id.to_owned(), item);
+                let item = ctx.stack.pop().unwrap();
+                ctx.frames.insert_rc(id.to_owned(), item);
             }
+            PushTable => ctx.frames.push_frame(),
+            PopTable => ctx.frames.pop_frame(),
             Invoke(pop_size) => {
-                let mut target = &mut stack.pop().unwrap();
+                let mut target = &mut ctx.stack.pop().unwrap();
                 let mut vec = Vec::with_capacity(pop_size);
                 for _ in 0..pop_size {
-                    let what = stack.pop().unwrap();
+                    let what = ctx.stack.pop().unwrap();
                     vec.insert(0, what);
                 }
                 let result = target.invoke(vec, self).map_err(|e| VMErr::RtErr(e))?;
-                stack.push(result);
+                ctx.stack.push(result);
             }
             Yield => return Ok(true),
-            Jump(i) => *head = i,
+            Jump(i) => ctx.head = i,
             _ => return Err(VMErr::UnknownInstruction),
         }
 

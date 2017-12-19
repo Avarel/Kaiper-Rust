@@ -12,7 +12,7 @@ mod vm;
 mod macros;
 
 use rt::obj::Obj;
-use scope::Scope;
+use scope::StackFrames;
 use vm::inst::Inst;
 use vm::{VM, VMContext};
 
@@ -45,7 +45,7 @@ fn main() {
 
     let hello = kaiper_tokens! {
         let x = 1 + 2;
-        pls
+        
     };
 
     println!("{:?}", hello);
@@ -67,24 +67,40 @@ fn main() {
     //     Inst::Jump(2),
     // ];
     let inst = vec![
-        Inst::PushStr(String::from("hello ")),
-        Inst::PushInt(5),
-        Inst::Get(String::from("coolFunction")),
-        Inst::Invoke(2),
+        Inst::LoadStr(String::from("hello there")),
+        Inst::Store(String::from("one")),
+
+        Inst::Get(String::from("one")),
+        Inst::Get(String::from("println")),
+        Inst::Invoke(1),
+
+        Inst::PushTable,
+        Inst::LoadStr(String::from("good bye")),
+        Inst::Store(String::from("one")),
+        Inst::Get(String::from("one")),
+        Inst::Get(String::from("println")),
+        Inst::Invoke(1),
+        Inst::PopTable,
+
+        Inst::PushTable,
+        Inst::Get(String::from("one")),
+        Inst::Get(String::from("println")),
+        Inst::Invoke(1),
+        Inst::PopTable,        
     ];
 
     let mut vm = VM::new(inst);
     let mut cont = VMContext::default();
 
     use rt::function::NativeFunction;
-    cont.heap.insert(String::from("coolFunction"), NativeFunction::new("coolFunction", |args| {
+    cont.frames.insert(String::from("println"), NativeFunction::new("println", |args| {
         for rc in args {
             println!("{}", rc);
         }
-        Ok(Rc::new(String::from("YOU HAVE EXECUTED COOLFUNCTION")))
+        Ok(Rc::new(rt::null::Null))
     }));
 
-    for _ in 0..10 {
+    for _ in 0..1 {
         match vm.run_context(&mut cont) {
             Ok(Some(ans)) => {
                 println!("Ans: {}", ans)

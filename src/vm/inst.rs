@@ -1,15 +1,15 @@
 #[derive(Clone)]
 pub enum Inst {
     // Load an int onto the stack
-    PushInt(i32),
+    LoadInt(i32),
     // Load a number onto the stack
-    PushNum(f64),
+    LoadNum(f64),
     // Load a null reference onto the stack
-    PushNull,
+    LoadNull,
     // Load a string onto the stack
-    PushStr(String),
+    LoadStr(String),
     // Load a boolean onto the stack
-    PushBool(bool),
+    LoadBool(bool),
 
     // Pop the stack and store an obj onto the heap
     Store(String),
@@ -31,4 +31,7 @@ pub enum Inst {
 
     // Goto location
     Jump(usize),
+
+    PushTable,
+    PopTable,
 }
