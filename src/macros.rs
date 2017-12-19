@@ -3,6 +3,12 @@
 //     ($($y: expr);*) => (Expr::Stmts(vec![$($y),*]))
 // }
 
+macro_rules! kaiper_tokens {
+    ($($t: tt)*) => {
+        lexer::tokenizer::Tokenizer::new(stringify!($($t)*)).parse().unwrap();
+    };
+}
+
 // macro_rules! expr {
 //     ($lhs: expr, $op: expr, $rhs: expr) => {
 //         Expr::BinaryOp(

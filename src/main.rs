@@ -16,6 +16,8 @@ use scope::Scope;
 use vm::inst::Inst;
 use vm::{VM, VMContext};
 
+use std::rc::Rc;
+
 fn main() {
     // let hello = 1 + 2
     // hello = hello + 7
@@ -39,29 +41,51 @@ fn main() {
     //     Inst::Get(String::from("hello")),
     // ];
 
+    //loop_read();
+
+    let hello = kaiper_tokens! {
+        let x = 1 + 2;
+        pls
+    };
+
+    println!("{:?}", hello);
+
     // let counter = 0
     // while true {
     //    yield counter
     //    counter = counter + 1 
     // }
-    loop_read();
-
+    // let inst = vec![
+    //     Inst::PushInt(0),
+    //     Inst::Store(String::from("counter")),
+    //     Inst::Get(String::from("counter")),
+    //     Inst::Yield,
+    //     Inst::Get(String::from("counter")),
+    //     Inst::PushInt(1),
+    //     Inst::Add,
+    //     Inst::Store(String::from("counter")),
+    //     Inst::Jump(2),
+    // ];
     let inst = vec![
-        Inst::PushInt(0),
-        Inst::Store(String::from("counter")),
-        Inst::Get(String::from("counter")),
-        Inst::Yield,
-        Inst::Get(String::from("counter")),
-        Inst::PushInt(1),
-        Inst::Add,
-        Inst::Store(String::from("counter")),
-        Inst::Jump(2)
+        Inst::PushStr(String::from("hello ")),
+        Inst::PushInt(5),
+        Inst::Get(String::from("coolFunction")),
+        Inst::Invoke(2),
     ];
 
     let mut vm = VM::new(inst);
     let mut cont = VMContext::default();
-    for _ in 0..10000 {
-        match vm.run_continuation(&mut cont) {
+
+    use rt::function::NativeFunction;
+    cont.heap.insert(String::from("coolFunction"), NativeFunction::new("coolFunction", |args| {
+        for rc in args {
+            println!("{}", rc);
+        }
+        Ok(Rc::new(String::from("YOU HAVE EXECUTED COOLFUNCTION")))
+    }));
+
+    for _ in 0..10 {
+        match vm.run_context(&mut cont) {
             Ok(Some(ans)) => {
                 println!("Ans: {}", ans)
             }

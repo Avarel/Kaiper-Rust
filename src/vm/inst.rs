@@ -1,4 +1,4 @@
-// #[derive(Clone,)]
+#[derive(Clone)]
 pub enum Inst {
     // Load an int onto the stack
     PushInt(i32),
@@ -16,7 +16,9 @@ pub enum Inst {
     // Get and push an obj on the heap onto the stack
     Get(String),
 
-    // Pop and yield an answer, stop the execution but does not 
+    // Pop and return an answer, stopping
+    Return,
+    // Pop and yield an answer, suspending the head
     Yield,
 
     // Pop 2 from the stack and do the operation
@@ -24,6 +26,8 @@ pub enum Inst {
     Sub,
     Mul,
     Div,
+    
+    Invoke(usize),
 
     // Goto location
     Jump(usize),

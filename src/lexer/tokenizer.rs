@@ -18,13 +18,16 @@ impl<'a> Tokenizer<'a> {
 
         while let Some(c) = self.stream.next() {
             match c {
+                '\n' => list.push(Token::NewLine),
                 _x if _x.is_whitespace() => (),
+                ';' => list.push(Token::Semi),
                 '(' => list.push(Token::LeftParen),
                 ')' => list.push(Token::RightParen),
                 '[' => list.push(Token::LeftBracket),
                 ']' => list.push(Token::RightBracket),
                 '{' => list.push(Token::LeftBrace),
                 '}' => list.push(Token::RightBrace),
+                ':' => list.push(Token::Colon),
                 '+' => list.push(Token::Plus),
                 '-' => list.push(Token::Minus),
                 '*' => list.push(Token::Asterisk),

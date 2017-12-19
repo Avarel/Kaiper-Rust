@@ -21,10 +21,6 @@ impl Scope {
         }
     }
 
-    pub fn copy(&self) -> Self {
-        Scope { maps: self.maps.clone() }
-    }
-
     /// Creates a new scope with this scope as fallback.
     /// The new scope also inherits the current scope's fallbacks.
     pub fn sub_scope(&self) -> Self {
@@ -77,5 +73,13 @@ impl Scope {
     /// Returns a mutable reference to the immediate HashMap.
     pub fn hash_map_mut(&self) -> RefMut<HashMap<String, Rc<Obj>>> {
         RefCell::borrow_mut(self.maps.last().unwrap())
+    }
+}
+
+impl Clone for Scope {
+    fn clone(&self) -> Self {
+        let mut maps = self.maps[..self.maps.len() - 1].to_vec();
+        maps.push(Rc::new(RefCell::new(RefCell::borrow(self.maps.last().unwrap()).clone())));
+        Scope { maps }
     }
 }

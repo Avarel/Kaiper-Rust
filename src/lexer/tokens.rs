@@ -35,4 +35,8 @@ pub enum Token {
 
     Dot,
     Comma,
+    Colon,
+
+    NewLine,
+    Semi,
 }
