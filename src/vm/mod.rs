@@ -3,7 +3,7 @@ pub mod err;
 
 use vm::inst::Inst;
 use vm::err::VMErr;
-use scope::StackFrames;
+use scope::VarTables;
 use rt::obj::Obj;
 use rt::null::Null;
 use std::rc::Rc;
@@ -12,20 +12,20 @@ pub struct VM {
     inst: Vec<Inst>,
 }
 
-pub struct VMContext {
+pub struct StackFrame {
     pub head: usize,
     pub end: Option<usize>,
     pub stack: Vec<Rc<Obj>>,
-    pub frames: StackFrames
+    pub tables: VarTables
 }
 
-impl Default for VMContext {
+impl Default for StackFrame {
     fn default() -> Self {
-        VMContext {
+        StackFrame {
             head: 0,
             end: None,
             stack: Vec::new(),
-            frames: StackFrames::new(),
+            tables: VarTables::new(),
         }
     }
 }
@@ -37,10 +37,10 @@ impl VM {
     }
 
     pub fn run(&mut self) -> Answer {
-        self.run_context(&mut VMContext::default())
+        self.run_context(&mut StackFrame::default())
     }
 
-    pub fn run_context(&mut self, ctx: &mut VMContext) -> Answer {
+    pub fn run_context(&mut self, ctx: &mut StackFrame) -> Answer {
         let end = ctx.end.unwrap_or_else(|| self.inst.len());
         while ctx.head < end {
             if self.execute(ctx)? {
@@ -55,7 +55,7 @@ impl VM {
     // Result<true> if the execution should suspend
     fn execute(
         &mut self,
-        ctx: &mut VMContext
+        ctx: &mut StackFrame
     ) -> Result<bool, VMErr> {
         macro_rules! op_impl {
             ($stack: expr, $id: ident, $vm: ident) => {{
@@ -79,16 +79,16 @@ impl VM {
             Sub => op_impl!(ctx.stack, sub, self),
             Mul => op_impl!(ctx.stack, mul, self),
             Div => op_impl!(ctx.stack, div, self),
-            Get(ref id) => match ctx.frames.get(id) {
+            Get(ref id) => match ctx.tables.get(id) {
                 Some(rc) => ctx.stack.push(rc),
                 None => return Err(VMErr::UndefinedVariable),
             },
-            Store(ref id) => {
+            Store(ref id, offset) => {
                 let item = ctx.stack.pop().unwrap();
-                ctx.frames.insert_rc(id.to_owned(), item);
+                ctx.tables.insert_rc_ptr(offset, id.to_owned(), item);
             }
-            PushTable => ctx.frames.push_frame(),
-            PopTable => ctx.frames.pop_frame(),
+            PushTable => ctx.tables.push_table(),
+            PopTable => ctx.tables.pop_table(),
             Invoke(pop_size) => {
                 let mut target = &mut ctx.stack.pop().unwrap();
                 let mut vec = Vec::with_capacity(pop_size);

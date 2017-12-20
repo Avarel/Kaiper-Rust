@@ -3,18 +3,16 @@ extern crate downcast_rs;
 extern crate rustyline;
 
 mod scope;
-mod ast;
 mod rt;
 mod lexer;
 mod vm;
+mod parser;
 
 #[macro_use]
 mod macros;
 
-use rt::obj::Obj;
-use scope::StackFrames;
 use vm::inst::Inst;
-use vm::{VM, VMContext};
+use vm::{VM, StackFrame};
 
 use std::rc::Rc;
 
@@ -43,12 +41,12 @@ fn main() {
 
     //loop_read();
 
-    let hello = kaiper_tokens! {
-        let x = 1 + 2;
+    // let hello = kaiper_tokens! {
+    //     let x = 1 + 2;
         
-    };
+    // };
 
-    println!("{:?}", hello);
+    // println!("{:?}", hello);
 
     // let counter = 0
     // while true {
@@ -68,7 +66,7 @@ fn main() {
     // ];
     let inst = vec![
         Inst::LoadStr(String::from("hello there")),
-        Inst::Store(String::from("one")),
+        Inst::Store(String::from("one"), 0),
 
         Inst::Get(String::from("one")),
         Inst::Get(String::from("println")),
@@ -76,7 +74,7 @@ fn main() {
 
         Inst::PushTable,
         Inst::LoadStr(String::from("good bye")),
-        Inst::Store(String::from("one")),
+        Inst::Store(String::from("one"), 0),
         Inst::Get(String::from("one")),
         Inst::Get(String::from("println")),
         Inst::Invoke(1),
@@ -86,14 +84,43 @@ fn main() {
         Inst::Get(String::from("one")),
         Inst::Get(String::from("println")),
         Inst::Invoke(1),
-        Inst::PopTable,        
+        Inst::PopTable,
+        
+        Inst::PushTable,
+        Inst::LoadStr(String::from("good times")),
+        Inst::Store(String::from("one"), 1),
+        Inst::Get(String::from("one")),
+        Inst::Get(String::from("println")),
+        Inst::Invoke(1),
+        Inst::PopTable,
+
+        Inst::Get(String::from("one")),
+        Inst::Get(String::from("println")),
+        Inst::Invoke(1),
     ];
 
+    /*
+    let one = "hello there";
+    println(one);
+    {
+        let one = "good bye";
+        println(one);
+    }
+    {
+        println(one);
+    }
+    {
+        one = "good times";
+        println(one);
+    }
+    println(one);
+    */
+
     let mut vm = VM::new(inst);
-    let mut cont = VMContext::default();
+    let mut cont = StackFrame::default();
 
     use rt::function::NativeFunction;
-    cont.frames.insert(String::from("println"), NativeFunction::new("println", |args| {
+    cont.tables.insert(String::from("println"), NativeFunction::new("println", |args| {
         for rc in args {
             println!("{}", rc);
         }

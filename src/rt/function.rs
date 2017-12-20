@@ -1,6 +1,6 @@
 use rt::obj::Obj;
 use std::rc::Rc;
-use vm::{VM, VMContext};
+use vm::{VM, StackFrame};
 
 pub struct NativeFunction {
     pub name: String,

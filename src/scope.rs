@@ -1,26 +1,26 @@
 use std::rc::Rc;
-use std::cell::{RefCell, Ref, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 
 use std::collections::HashMap;
 use rt::obj::Obj;
 
-pub struct StackFrames {
-    pub frames: Vec<Rc<RefCell<HashMap<String, Rc<Obj>>>>>,
+pub struct VarTables {
+    pub tables: Vec<Rc<RefCell<HashMap<String, Rc<Obj>>>>>,
 }
 
-impl StackFrames {
+impl VarTables {
     pub fn new() -> Self {
-        StackFrames { 
-            frames: vec![Rc::new(RefCell::new(HashMap::new()))] 
+        VarTables {
+            tables: vec![Rc::new(RefCell::new(HashMap::new()))],
         }
     }
 
-    pub fn pop_frame(&mut self) {
-        self.frames.pop();
+    pub fn pop_table(&mut self) {
+        self.tables.pop();
     }
 
-    pub fn push_frame(&mut self) {
-        self.frames.push(Rc::new(RefCell::new(HashMap::new())));
+    pub fn push_table(&mut self) {
+        self.tables.push(Rc::new(RefCell::new(HashMap::new())));
     }
 
     /// Insert a value into the immediate scope.
@@ -29,14 +29,19 @@ impl StackFrames {
     }
 
     pub fn insert_rc(&mut self, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
-        self.hash_map_mut().insert(k, v)
+        self.insert_rc_ptr(0, k, v)
+    }
+
+    pub fn insert_rc_ptr(&mut self, ptr_offset: usize, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
+        let index = self.tables.len() - 1 - ptr_offset;
+        self.hash_map_mut(index).insert(k, v)
     }
 
     /// Get a value from the scope.
     /// If the value doesn't exist in the scope, use fallback
     /// values from fallback scopes (which may or may not exist).
     pub fn get(&self, k: &String) -> Option<Rc<Obj>> {
-        self.frames
+        self.tables
             .iter()
             .rev()
             .map(|rc| RefCell::borrow(rc))
@@ -46,7 +51,7 @@ impl StackFrames {
 
     /// Returns if the scope and the parent scopes contain the key.
     pub fn any_contains(&self, k: &String) -> bool {
-        self.frames
+        self.tables
             .iter()
             .rev()
             .map(|rc| RefCell::borrow(rc))
@@ -55,18 +60,18 @@ impl StackFrames {
 
     /// Returns if the immediate scope contains the key.
     pub fn map_contains(&self, k: &String) -> bool {
-        self.hash_map().contains_key(k)
+        self.hash_map(self.tables.len() - 1).contains_key(k)
     }
 
     /// Returns a reference to the immediate HashMap.
-    pub fn hash_map(&self) -> Ref<HashMap<String, Rc<Obj>>> {
-        RefCell::borrow(self.frames.last().unwrap())
+    pub fn hash_map(&self, ptr: usize) -> Ref<HashMap<String, Rc<Obj>>> {
+        RefCell::borrow(&self.tables[ptr])
     }
 
     // FOOL, you've never seen hacks like THESE
     /// Returns a mutable reference to the immediate HashMap.
-    pub fn hash_map_mut(&self) -> RefMut<HashMap<String, Rc<Obj>>> {
-        RefCell::borrow_mut(self.frames.last().unwrap())
+    pub fn hash_map_mut(&self, ptr: usize) -> RefMut<HashMap<String, Rc<Obj>>> {
+        RefCell::borrow_mut(&self.tables[ptr])
     }
 }
 
@@ -140,8 +145,10 @@ impl StackFrames {
 //     }
 // }
 
-impl Clone for StackFrames {
+impl Clone for VarTables {
     fn clone(&self) -> Self {
-        StackFrames { frames: self.frames.clone() }
+        VarTables {
+            tables: self.tables.clone(),
+        }
     }
 }

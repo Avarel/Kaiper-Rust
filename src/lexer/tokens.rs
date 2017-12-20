@@ -1,5 +1,11 @@
-#[derive(Debug)]
-pub enum Token {
+#[derive(Clone, Debug)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub string: Option<String>
+}
+
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+pub enum TokenType {
     LeftParen,
     RightParen,
 
@@ -9,11 +15,12 @@ pub enum Token {
     LeftBrace,
     RightBrace,
 
-    Int(i32),
-    Number(f64),
-    Boolean(bool),
-    String(String),
-    Identifier(String),
+    Int,
+    Number,
+    True,
+    False,
+    String,
+    Identifier,
     Null,
 
     Let,

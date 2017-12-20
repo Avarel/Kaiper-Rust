@@ -12,7 +12,7 @@ pub enum Inst {
     LoadBool(bool),
 
     // Pop the stack and store an obj onto the heap
-    Store(String),
+    Store(String, usize),
     // Get and push an obj on the heap onto the stack
     Get(String),
 

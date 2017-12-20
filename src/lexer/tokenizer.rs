@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use std::str::Chars;
-use lexer::tokens::Token;
+use lexer::tokens::{Token, TokenType};
 
 pub struct Tokenizer<'a> {
     stream: Peekable<Chars<'a>>,
@@ -13,47 +13,61 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    pub fn make_token(&self, token_type: TokenType) -> Token {
+        Token {
+            token_type,
+            string: None,
+        }
+    }
+
+    pub fn make_token_str(&self, token_type: TokenType, string: String) -> Token {
+        Token {
+            token_type,
+            string: Some(string),
+        }
+    }
+
     pub fn parse(&mut self) -> Result<Vec<Token>, String> {
         let mut list = Vec::new();
 
         while let Some(c) = self.stream.next() {
             match c {
-                '\n' => list.push(Token::NewLine),
+                '\n' => list.push(self.make_token(TokenType::NewLine)),
                 _x if _x.is_whitespace() => (),
-                ';' => list.push(Token::Semi),
-                '(' => list.push(Token::LeftParen),
-                ')' => list.push(Token::RightParen),
-                '[' => list.push(Token::LeftBracket),
-                ']' => list.push(Token::RightBracket),
-                '{' => list.push(Token::LeftBrace),
-                '}' => list.push(Token::RightBrace),
-                ':' => list.push(Token::Colon),
-                '+' => list.push(Token::Plus),
-                '-' => list.push(Token::Minus),
-                '*' => list.push(Token::Asterisk),
-                '/' => list.push(Token::Slash),
-                '.' => list.push(Token::Dot),
-                ',' => list.push(Token::Comma),
+                ';' => list.push(self.make_token(TokenType::Semi)),
+                '(' => list.push(self.make_token(TokenType::LeftParen)),
+                ')' => list.push(self.make_token(TokenType::RightParen)),
+                '[' => list.push(self.make_token(TokenType::LeftBracket)),
+                ']' => list.push(self.make_token(TokenType::RightBracket)),
+                '{' => list.push(self.make_token(TokenType::LeftBrace)),
+                '}' => list.push(self.make_token(TokenType::RightBrace)),
+                ':' => list.push(self.make_token(TokenType::Colon)),
+                '+' => list.push(self.make_token(TokenType::Plus)),
+                '-' => list.push(self.make_token(TokenType::Minus)),
+                '*' => list.push(self.make_token(TokenType::Asterisk)),
+                '/' => list.push(self.make_token(TokenType::Slash)),
+                '.' => list.push(self.make_token(TokenType::Dot)),
+                ',' => list.push(self.make_token(TokenType::Comma)),
                 '=' => match self.stream.peek() {
                     Some(&'=') => {
-                        list.push(Token::Eq);
+                        list.push(self.make_token(TokenType::Eq));
                         self.stream.next();
                     }
-                    _ => list.push(Token::Assign),
+                    _ => list.push(self.make_token(TokenType::Assign)),
                 },
                 '<' => match self.stream.peek() {
                     Some(&'=') => {
-                        list.push(Token::Lte);
+                        list.push(self.make_token(TokenType::Lte));
                         self.stream.next();
                     }
-                    _ => list.push(Token::Lt),
+                    _ => list.push(self.make_token(TokenType::Lt)),
                 },
                 '>' => match self.stream.peek() {
                     Some(&'=') => {
-                        list.push(Token::Gt);
+                        list.push(self.make_token(TokenType::Gt));
                         self.stream.next();
                     }
-                    _ => list.push(Token::Gte),
+                    _ => list.push(self.make_token(TokenType::Gte)),
                 },
                 '"' => self.string('"', true, &mut list)?,
                 '\'' => self.string('\'', false, &mut list)?,
@@ -77,8 +91,8 @@ impl<'a> Tokenizer<'a> {
                     if let Some(&'{') = self.stream.peek() {
                         self.stream.next();
 
-                        list.push(Token::String(buffer.to_owned()));
-                        list.push(Token::Plus);
+                        list.push(self.make_token_str(TokenType::String, buffer.to_owned()));
+                        list.push(self.make_token(TokenType::Plus));
                         buffer.clear();
 
                         while let Some(c) = self.stream.next() {
@@ -87,9 +101,9 @@ impl<'a> Tokenizer<'a> {
                                 _ => buffer.push(c),
                             }
                         }
-                    } else if self.stream.peek().map_or(false, |c| c.is_alphabetic()) {                        
-                        list.push(Token::String(buffer.to_owned()));
-                        list.push(Token::Plus);
+                    } else if self.stream.peek().map_or(false, |c| c.is_alphabetic()) {
+                        list.push(self.make_token_str(TokenType::String, buffer.to_owned()));
+                        list.push(self.make_token(TokenType::Plus));
                         buffer.clear();
 
                         buffer.push(self.stream.next().unwrap());
@@ -103,13 +117,13 @@ impl<'a> Tokenizer<'a> {
                     }
 
                     list.append(&mut Tokenizer::new(buffer.as_ref()).parse()?);
-                    list.push(Token::Plus);
+                    list.push(self.make_token(TokenType::Plus));
                     buffer.clear();
                 }
                 x if x == delim => {
                     self.stream.next();
                     not_terminated = false;
-                    break
+                    break;
                 }
                 _ => {
                     buffer.push(c);
@@ -119,10 +133,10 @@ impl<'a> Tokenizer<'a> {
         }
 
         if not_terminated {
-            return Err(String::from("Unterminated"))
+            return Err(String::from("Unterminated"));
         }
 
-        list.push(Token::String(buffer));
+        list.push(self.make_token_str(TokenType::String, buffer));
 
         Ok(())
     }
@@ -142,11 +156,11 @@ impl<'a> Tokenizer<'a> {
         }
 
         match buffer.as_ref() {
-            "true" => Token::Boolean(true),
-            "false" => Token::Boolean(false),
-            "let" => Token::Let,
-            "null" => Token::Null,
-            x => Token::Identifier(x.to_string()),
+            "true" => self.make_token(TokenType::True),
+            "false" => self.make_token(TokenType::False),
+            "let" => self.make_token(TokenType::Let),
+            "null" => self.make_token(TokenType::Null),
+            x => self.make_token_str(TokenType::Identifier, x.to_string()),
         }
     }
 
@@ -167,7 +181,14 @@ impl<'a> Tokenizer<'a> {
                     }
 
                     use std::i32;
-                    return Ok(Token::Int(i32::from_str_radix(&buffer, 16).map_err(|_| "Can't parse hex num")?))
+                    return Ok(
+                        self.make_token_str(
+                            TokenType::Int,
+                            i32::from_str_radix(&buffer, 16)
+                                .map_err(|_| "Can't parse hex num")?
+                                .to_string(),
+                        ),
+                    );
                 }
                 Some('b') => {
                     while let Some(&c) = self.stream.peek() {
@@ -180,7 +201,14 @@ impl<'a> Tokenizer<'a> {
                         }
                     }
 
-                    return Ok(Token::Int(i32::from_str_radix(&buffer, 2).map_err(|_| "Can't parse binary num")?))
+                    return Ok(
+                        self.make_token_str(
+                            TokenType::Int,
+                            i32::from_str_radix(&buffer, 2)
+                                .map_err(|_| "Can't parse binary num")?
+                                .to_string(),
+                        ),
+                    );
                 }
                 Some(n) => buffer.push(n),
                 _ => {}
@@ -242,17 +270,37 @@ impl<'a> Tokenizer<'a> {
 
             self.num_buffer_fill(buffer);
 
-            return Ok(Token::Number(
-                buffer.parse().map_err(|_| "Can not parse number")?,
-            ));
+            return Ok(
+                self.make_token_str(
+                    TokenType::Number,
+                    buffer
+                        .parse::<f64>()
+                        .map_err(|_| "Can not parse number")?
+                        .to_string(),
+                ),
+            );
         }
 
         if is_int {
-            Ok(Token::Int(buffer.parse().map_err(|_| "Can not parse int")?))
+            Ok(
+                self.make_token_str(
+                    TokenType::Int,
+                    buffer
+                        .parse::<i32>()
+                        .map_err(|_| "Can not parse int")?
+                        .to_string(),
+                ),
+            )
         } else {
-            Ok(Token::Number(
-                buffer.parse().map_err(|_| "Can not parse number")?,
-            ))
+            Ok(
+                self.make_token_str(
+                    TokenType::Number,
+                    buffer
+                        .parse::<f64>()
+                        .map_err(|_| "Can not parse number")?
+                        .to_string(),
+                ),
+            )
         }
     }
 }
