@@ -1,6 +1,9 @@
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate downcast_rs;
 extern crate rustyline;
+extern crate byteorder;
 
 mod scope;
 mod rt;
@@ -8,140 +11,121 @@ mod lexer;
 mod vm;
 mod parser;
 
-#[macro_use]
-mod macros;
-
-use vm::inst::Inst;
 use vm::{VM, StackFrame};
 
 use std::rc::Rc;
 
 fn main() {
-    // let hello = 1 + 2
-    // hello = hello + 7
-    // yield 1
-    // yield 2
-    // hello
+    let wtr = vm::inst_writer::InstBuilder::new()
+        .load_str(0)
+        .store(0, hstr("one"))
+        .load_str(1)
+        .store(0, hstr("two"))
+        .get(hstr("two"))
+        .get(hstr("one"))
+        .get(hstr("printall"))
+        .invoke(2)
+        .complete();
 
+    let string_pool: Vec<String> = vec!["hello there", "good bye", "WOOHOOOOOO"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    // TODO:
+    // INSTRUCTIONS -> move to clike enums with bytes
+    // inst -> 8 bits (1*u8)
+    // Strings -> 24 bytes/192 bits (USE A CONSTANT TABLE)
+    // int -> 4 byte/32 bit (4*u8)
+    // num -> 8 byte/64 bit (8*u8)
+    // variable names -> 8 byte/64 bit (8*u8) OR just get from string pool also
     // let inst = vec![
-    //     Inst::PushInt(1), 
-    //     Inst::PushInt(2), 
-    //     Inst::Add,
-    //     Inst::Store(String::from("hello")),
-    //     Inst::Get(String::from("hello")),
-    //     Inst::PushInt(7),
-    //     Inst::Add,
-    //     Inst::Store(String::from("hello")),
-    //     Inst::PushInt(1),
-    //     Inst::Yield,
-    //     Inst::PushInt(2),
-    //     Inst::Yield,
-    //     Inst::Get(String::from("hello")),
+    //     Inst::LoadStr(0),
+    //     Inst::Store(hstr("one"), 0),
+
+    //     Inst::Get(hstr("one")),
+    //     Inst::Get(hstr("println")),
+    //     Inst::Invoke(1),
+
+    //     Inst::PushTable,
+    //     Inst::LoadStr(1),
+    //     Inst::Store(hstr("one"), 0),
+    //     Inst::Get(hstr("one")),
+    //     Inst::Get(hstr("println")),
+    //     Inst::Invoke(1),
+    //     Inst::PopTable,
+
+    //     Inst::PushTable,
+    //     Inst::Get(hstr("one")),
+    //     Inst::Get(hstr("println")),
+    //     Inst::Invoke(1),
+    //     Inst::PopTable,
+
+    //     Inst::PushTable,
+    //     Inst::LoadStr(2),
+    //     Inst::Store(hstr("one"), 1),
+    //     Inst::Get(hstr("one")),
+    //     Inst::Get(hstr("println")),
+    //     Inst::Invoke(1),
+    //     Inst::PopTable,
+
+    //     Inst::Get(hstr("one")),
+    //     Inst::Get(hstr("println")),
+    //     Inst::Invoke(1),
     // ];
 
-    //loop_read();
-
-    // let hello = kaiper_tokens! {
-    //     let x = 1 + 2;
-        
-    // };
-
-    // println!("{:?}", hello);
-
-    // let counter = 0
-    // while true {
-    //    yield counter
-    //    counter = counter + 1 
+    // /*
+    // let one = "hello there";
+    // println(one);
+    // {
+    //     let one = "good bye";
+    //     println(one);
     // }
-    // let inst = vec![
-    //     Inst::PushInt(0),
-    //     Inst::Store(String::from("counter")),
-    //     Inst::Get(String::from("counter")),
-    //     Inst::Yield,
-    //     Inst::Get(String::from("counter")),
-    //     Inst::PushInt(1),
-    //     Inst::Add,
-    //     Inst::Store(String::from("counter")),
-    //     Inst::Jump(2),
-    // ];
-    let inst = vec![
-        Inst::LoadStr(String::from("hello there")),
-        Inst::Store(String::from("one"), 0),
+    // {
+    //     println(one);
+    // }
+    // {
+    //     one = "WOOOHOOOOOOO";
+    //     println(one);
+    // }
+    // println(one);
+    // */
 
-        Inst::Get(String::from("one")),
-        Inst::Get(String::from("println")),
-        Inst::Invoke(1),
-
-        Inst::PushTable,
-        Inst::LoadStr(String::from("good bye")),
-        Inst::Store(String::from("one"), 0),
-        Inst::Get(String::from("one")),
-        Inst::Get(String::from("println")),
-        Inst::Invoke(1),
-        Inst::PopTable,
-
-        Inst::PushTable,
-        Inst::Get(String::from("one")),
-        Inst::Get(String::from("println")),
-        Inst::Invoke(1),
-        Inst::PopTable,
-        
-        Inst::PushTable,
-        Inst::LoadStr(String::from("good times")),
-        Inst::Store(String::from("one"), 1),
-        Inst::Get(String::from("one")),
-        Inst::Get(String::from("println")),
-        Inst::Invoke(1),
-        Inst::PopTable,
-
-        Inst::Get(String::from("one")),
-        Inst::Get(String::from("println")),
-        Inst::Invoke(1),
-    ];
-
-    /*
-    let one = "hello there";
-    println(one);
-    {
-        let one = "good bye";
-        println(one);
-    }
-    {
-        println(one);
-    }
-    {
-        one = "good times";
-        println(one);
-    }
-    println(one);
-    */
-
-    let mut vm = VM::new(inst);
+    let mut vm = VM::new(wtr, string_pool);
     let mut cont = StackFrame::default();
 
     use rt::function::NativeFunction;
-    cont.tables.insert(String::from("println"), NativeFunction::new("println", |args| {
-        for rc in args {
-            println!("{}", rc);
-        }
-        Ok(Rc::new(rt::null::Null))
-    }));
+    cont.tables.insert(
+        hstr("printall"),
+        NativeFunction::new("printall", |args| {
+            for rc in args {
+                println!("{}", rc);
+            }
+            Ok(Rc::new(rt::null::Null))
+        }),
+    );
 
     for _ in 0..1 {
         match vm.run_context(&mut cont) {
-            Ok(Some(ans)) => {
-                println!("Ans: {}", ans)
-            }
+            Ok(Some(ans)) => println!("Ans: {}", ans),
             Ok(None) => {
                 println!("Execution finished");
-                break
+                break;
             }
             Err(msg) => {
-                println!("{:?}", msg);
-                break
+                println!("Error: {:?}", msg);
+                break;
             }
         }
     }
+}
+
+pub fn hstr(string: &str) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::default();
+    string.to_owned().hash(&mut hasher);
+    hasher.finish()
 }
 
 // fn get_store(id: &str) -> Inst {
@@ -191,20 +175,16 @@ fn loop_read() {
     loop {
         match rl.readline(">>> ") {
             Ok(line) => {
-                match lexer::tokenizer::Tokenizer::new(&line).parse() {
-                    Ok(list) => {
-                        println!("Tokens: {:?}", list)
-                    }
-                    Err(err) => {
-                        println!("Lexer err: {}", err)
-                    }
+                match lexer::Tokenizer::new(&line).parse() {
+                    Ok(list) => println!("Tokens: {:?}", list),
+                    Err(err) => println!("Lexer err: {}", err),
                 }
-                
             }
-            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
+            Err(ReadlineError::Interrupted) |
+            Err(ReadlineError::Eof) => break,
             Err(err) => {
                 println!("{}", err);
-                break
+                break;
             }
         }
     }

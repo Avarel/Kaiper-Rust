@@ -5,14 +5,12 @@ use std::collections::HashMap;
 use rt::obj::Obj;
 
 pub struct VarTables {
-    pub tables: Vec<Rc<RefCell<HashMap<String, Rc<Obj>>>>>,
+    pub tables: Vec<Rc<RefCell<HashMap<u64, Rc<Obj>>>>>,
 }
 
 impl VarTables {
     pub fn new() -> Self {
-        VarTables {
-            tables: vec![Rc::new(RefCell::new(HashMap::new()))],
-        }
+        VarTables { tables: vec![Rc::new(RefCell::new(HashMap::new()))] }
     }
 
     pub fn pop_table(&mut self) {
@@ -24,15 +22,15 @@ impl VarTables {
     }
 
     /// Insert a value into the immediate scope.
-    pub fn insert<T: Obj>(&mut self, k: String, v: T) -> Option<Rc<Obj>> {
+    pub fn insert<T: Obj>(&mut self, k: u64, v: T) -> Option<Rc<Obj>> {
         self.insert_rc(k, Rc::new(v))
     }
 
-    pub fn insert_rc(&mut self, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
+    pub fn insert_rc(&mut self, k: u64, v: Rc<Obj>) -> Option<Rc<Obj>> {
         self.insert_rc_ptr(0, k, v)
     }
 
-    pub fn insert_rc_ptr(&mut self, ptr_offset: usize, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
+    pub fn insert_rc_ptr(&mut self, ptr_offset: usize, k: u64, v: Rc<Obj>) -> Option<Rc<Obj>> {
         let index = self.tables.len() - 1 - ptr_offset;
         self.hash_map_mut(index).insert(k, v)
     }
@@ -40,7 +38,7 @@ impl VarTables {
     /// Get a value from the scope.
     /// If the value doesn't exist in the scope, use fallback
     /// values from fallback scopes (which may or may not exist).
-    pub fn get(&self, k: &String) -> Option<Rc<Obj>> {
+    pub fn get(&self, k: &u64) -> Option<Rc<Obj>> {
         self.tables
             .iter()
             .rev()
@@ -50,27 +48,25 @@ impl VarTables {
     }
 
     /// Returns if the scope and the parent scopes contain the key.
-    pub fn any_contains(&self, k: &String) -> bool {
-        self.tables
-            .iter()
-            .rev()
-            .map(|rc| RefCell::borrow(rc))
-            .any(|map| map.contains_key(k))
+    pub fn any_contains(&self, k: &u64) -> bool {
+        self.tables.iter().rev().map(|rc| RefCell::borrow(rc)).any(
+            |map| map.contains_key(k),
+        )
     }
 
     /// Returns if the immediate scope contains the key.
-    pub fn map_contains(&self, k: &String) -> bool {
+    pub fn map_contains(&self, k: &u64) -> bool {
         self.hash_map(self.tables.len() - 1).contains_key(k)
     }
 
     /// Returns a reference to the immediate HashMap.
-    pub fn hash_map(&self, ptr: usize) -> Ref<HashMap<String, Rc<Obj>>> {
+    pub fn hash_map(&self, ptr: usize) -> Ref<HashMap<u64, Rc<Obj>>> {
         RefCell::borrow(&self.tables[ptr])
     }
 
     // FOOL, you've never seen hacks like THESE
     /// Returns a mutable reference to the immediate HashMap.
-    pub fn hash_map_mut(&self, ptr: usize) -> RefMut<HashMap<String, Rc<Obj>>> {
+    pub fn hash_map_mut(&self, ptr: usize) -> RefMut<HashMap<u64, Rc<Obj>>> {
         RefCell::borrow_mut(&self.tables[ptr])
     }
 }
@@ -147,8 +143,6 @@ impl VarTables {
 
 impl Clone for VarTables {
     fn clone(&self) -> Self {
-        VarTables {
-            tables: self.tables.clone(),
-        }
+        VarTables { tables: self.tables.clone() }
     }
 }

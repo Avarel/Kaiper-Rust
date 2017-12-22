@@ -1,7 +1,7 @@
 #[derive(Clone, Debug)]
 pub struct Token {
     pub token_type: TokenType,
-    pub string: Option<String>
+    pub string: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
@@ -38,7 +38,7 @@ pub enum TokenType {
     Gte,
     Gt,
     Lt,
-    Lte,    
+    Lte,
 
     Dot,
     Comma,
