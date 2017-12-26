@@ -1,6 +1,7 @@
 pub mod inst;
 pub mod err;
 pub mod inst_writer;
+pub mod compiler;
 
 use vm::inst::Inst;
 use vm::err::VMErr;
@@ -65,8 +66,10 @@ impl VM {
         Ok(ctx.stack.pop())
     }
 
-    // Result<false> if the execution should continue
-    // Result<true> if the execution should suspend
+    fn fetch(&mut self) -> Result<Inst, VMErr> {
+        Inst::from_u8(self.cursor.read_u8().map_err(self::map_read_err)?).ok_or(VMErr::UnknownInstruction)
+    }
+
     fn execute(&mut self, ctx: &mut StackFrame) -> Result<bool, VMErr> {
         macro_rules! op_impl {
             ($stack: expr, $id: ident, $vm: ident) => {{
@@ -76,8 +79,7 @@ impl VM {
             }};
         }
 
-        let inst = Inst::from_u8(self.cursor.read_u8().map_err(self::map_read_err)?).unwrap(); // Copy semantics
-        // ctx.head += 1;
+        let inst = self.fetch()?;
 
         use vm::inst::Inst::*;
         match inst {
@@ -104,7 +106,7 @@ impl VM {
             Div => op_impl!(ctx.stack, div, self),
             Get => {
                 let id = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
-                match ctx.tables.get(&id) {
+                match ctx.tables.get(&self.string_pool[id as usize]) {
                     Some(rc) => ctx.stack.push(rc),
                     None => return Err(VMErr::UndefinedVariable),
                 }
@@ -113,16 +115,18 @@ impl VM {
                 let table = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
                 let table_index = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
                 let obj = ctx.stack.pop().unwrap();
-                ctx.tables.insert_rc_ptr(table as usize, table_index, obj);
+                ctx.tables.insert_rc_ptr(table as usize, self.string_pool[table_index as usize].to_owned(), obj);
             }
             Invoke => {
-                let args = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
-                let mut target = &mut ctx.stack.pop().unwrap();
-                let mut vec = Vec::with_capacity(args as usize);
-                for _ in 0..args {
+                let arity = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
+                
+                let mut vec = Vec::with_capacity(arity as usize);
+                for _ in 0..arity {
                     let what = ctx.stack.pop().unwrap();
-                    vec.push(what);
+                    vec.insert(0, what);
                 }
+                
+                let mut target = &mut ctx.stack.pop().unwrap();
                 let result = target.invoke(vec, self).map_err(|e| VMErr::RtErr(e))?;
                 ctx.stack.push(result);
             }

@@ -39,6 +39,9 @@ pub enum Inst {
 
     PushTable = 16,
     PopTable = 17,
+
+    // Just pop a value off a stack and ignore it
+    PopStack = 18,
 }
 
 impl Inst {
@@ -63,6 +66,7 @@ impl Inst {
             15 => Jump,
             16 => PushTable,
             17 => PopTable,
+            18 => PopStack,
             _ => return None,
         })
     }

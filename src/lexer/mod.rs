@@ -10,7 +10,9 @@ pub struct Tokenizer<'a> {
 
 impl<'a> Tokenizer<'a> {
     pub fn new(s: &'a str) -> Self {
-        Tokenizer { stream: s.chars().peekable() }
+        Tokenizer {
+            stream: s.chars().peekable(),
+        }
     }
 
     pub fn make_token(&self, token_type: TokenType) -> Token {
@@ -29,60 +31,63 @@ impl<'a> Tokenizer<'a> {
 
     pub fn parse(&mut self) -> Result<Vec<Token>, String> {
         let mut list = Vec::new();
-
-        while let Some(c) = self.stream.next() {
-            match c {
-                '\n' => list.push(self.make_token(TokenType::NewLine)),
-                _x if _x.is_whitespace() => (),
-                ';' => list.push(self.make_token(TokenType::Semi)),
-                '(' => list.push(self.make_token(TokenType::LeftParen)),
-                ')' => list.push(self.make_token(TokenType::RightParen)),
-                '[' => list.push(self.make_token(TokenType::LeftBracket)),
-                ']' => list.push(self.make_token(TokenType::RightBracket)),
-                '{' => list.push(self.make_token(TokenType::LeftBrace)),
-                '}' => list.push(self.make_token(TokenType::RightBrace)),
-                ':' => list.push(self.make_token(TokenType::Colon)),
-                '+' => list.push(self.make_token(TokenType::Plus)),
-                '-' => list.push(self.make_token(TokenType::Minus)),
-                '*' => list.push(self.make_token(TokenType::Asterisk)),
-                '/' => list.push(self.make_token(TokenType::Slash)),
-                '.' => list.push(self.make_token(TokenType::Dot)),
-                ',' => list.push(self.make_token(TokenType::Comma)),
-                '=' => {
-                    match self.stream.peek() {
-                        Some(&'=') => {
-                            list.push(self.make_token(TokenType::Eq));
-                            self.stream.next();
-                        }
-                        _ => list.push(self.make_token(TokenType::Assign)),
-                    }
-                }
-                '<' => {
-                    match self.stream.peek() {
-                        Some(&'=') => {
-                            list.push(self.make_token(TokenType::Lte));
-                            self.stream.next();
-                        }
-                        _ => list.push(self.make_token(TokenType::Lt)),
-                    }
-                }
-                '>' => {
-                    match self.stream.peek() {
-                        Some(&'=') => {
-                            list.push(self.make_token(TokenType::Gt));
-                            self.stream.next();
-                        }
-                        _ => list.push(self.make_token(TokenType::Gte)),
-                    }
-                }
-                '"' => self.string('"', true, &mut list)?,
-                '\'' => self.string('\'', false, &mut list)?,
-                'A'...'Z' | 'a'...'z' | '_' => list.push(self.name(c)),
-                '0'...'9' => list.push(self.number(c)?),
-                _ => return Err(format!("Illegal character {}", c)),
-            }
-        }
+        self.parse_into_vec(&mut list)?;
         Ok(list)
+    }
+
+    pub fn parse_into_vec(&mut self, list: &mut Vec<Token>) -> Result<(), String> {
+        while let Some(c) = self.stream.next() {
+            self.parse_char_into_vec(c, list)?;
+        }
+        Ok(())
+    }
+
+    pub fn parse_char_into_vec(&mut self, c: char, list: &mut Vec<Token>) -> Result<(), String> {
+        match c {
+            '\n' => list.push(self.make_token(TokenType::NewLine)),
+            _x if _x.is_whitespace() => (),
+            ';' => list.push(self.make_token(TokenType::Semi)),
+            '(' => list.push(self.make_token(TokenType::LeftParen)),
+            ')' => list.push(self.make_token(TokenType::RightParen)),
+            '[' => list.push(self.make_token(TokenType::LeftBracket)),
+            ']' => list.push(self.make_token(TokenType::RightBracket)),
+            '{' => list.push(self.make_token(TokenType::LeftBrace)),
+            '}' => list.push(self.make_token(TokenType::RightBrace)),
+            ':' => list.push(self.make_token(TokenType::Colon)),
+            '+' => list.push(self.make_token(TokenType::Plus)),
+            '-' => list.push(self.make_token(TokenType::Minus)),
+            '*' => list.push(self.make_token(TokenType::Asterisk)),
+            '/' => list.push(self.make_token(TokenType::Slash)),
+            '.' => list.push(self.make_token(TokenType::Dot)),
+            ',' => list.push(self.make_token(TokenType::Comma)),
+            '=' => match self.stream.peek() {
+                Some(&'=') => {
+                    list.push(self.make_token(TokenType::Eq));
+                    self.stream.next();
+                }
+                _ => list.push(self.make_token(TokenType::Assign)),
+            },
+            '<' => match self.stream.peek() {
+                Some(&'=') => {
+                    list.push(self.make_token(TokenType::Lte));
+                    self.stream.next();
+                }
+                _ => list.push(self.make_token(TokenType::Lt)),
+            },
+            '>' => match self.stream.peek() {
+                Some(&'=') => {
+                    list.push(self.make_token(TokenType::Gt));
+                    self.stream.next();
+                }
+                _ => list.push(self.make_token(TokenType::Gte)),
+            },
+            '"' => self.string('"', true, list)?,
+            '\'' => self.string('\'', false, list)?,
+            'A'...'Z' | 'a'...'z' | '_' => list.push(self.name(c)),
+            '0'...'9' => list.push(self.number(c)?),
+            _ => return Err(format!("Illegal character {}", c)),
+        }
+        Ok(())
     }
 
     fn string(&mut self, delim: char, template: bool, list: &mut Vec<Token>) -> Result<(), String> {
@@ -101,12 +106,25 @@ impl<'a> Tokenizer<'a> {
                         list.push(self.make_token(TokenType::Plus));
                         buffer.clear();
 
+                        list.push(self.make_token(TokenType::LeftParen));
+
+                        let mut braces = 0;
                         while let Some(c) = self.stream.next() {
                             match c {
-                                '}' => break,
-                                _ => buffer.push(c),
+                                '}' => if braces == 0 {
+                                    break;
+                                } else {
+                                    braces -= 1;
+                                    self.parse_char_into_vec(c, list)?;
+                                },
+                                '{' => {
+                                    braces += 1;
+                                    self.parse_char_into_vec(c, list)?;
+                                }
+                                _ => self.parse_char_into_vec(c, list)?,
                             }
                         }
+                        list.push(self.make_token(TokenType::RightParen));
                     } else if self.stream.peek().map_or(false, |c| c.is_alphabetic()) {
                         list.push(self.make_token_str(TokenType::String, buffer.to_owned()));
                         list.push(self.make_token(TokenType::Plus));

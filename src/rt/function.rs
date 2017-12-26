@@ -4,7 +4,7 @@ use vm::{VM, /*StackFrame*/};
 
 pub struct NativeFunction {
     pub name: String,
-    pub func: Box<Fn(Vec<Rc<Obj>>) -> Result<Rc<Obj>, String>>,
+    pub func: fn(Vec<Rc<Obj>>) -> Result<Rc<Obj>, String>,
 }
 
 use std::fmt;
@@ -21,13 +21,13 @@ impl Obj for NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new<T: 'static + Fn(Vec<Rc<Obj>>) -> Result<Rc<Obj>, String>>(
+    pub fn new(
         name: &str,
-        func: T,
+        func: fn(Vec<Rc<Obj>>) -> Result<Rc<Obj>, String>,
     ) -> Self {
         NativeFunction {
             name: String::from(name),
-            func: Box::new(func),
+            func: func,
         }
     }
 }

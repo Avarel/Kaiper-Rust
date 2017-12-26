@@ -16,21 +16,24 @@ use vm::{VM, StackFrame};
 use std::rc::Rc;
 
 fn main() {
-    let wtr = vm::inst_writer::InstBuilder::new()
-        .load_str(0)
-        .store(0, hstr("one"))
-        .load_str(1)
-        .store(0, hstr("two"))
-        .get(hstr("two"))
-        .get(hstr("one"))
-        .get(hstr("printall"))
-        .invoke(2)
-        .complete();
-
-    let string_pool: Vec<String> = vec!["hello there", "good bye", "WOOHOOOOOO"]
+    // loop_read();
+    // return;
+    let string_pool: Vec<String> = vec!["hello there", "good bye", "WOOHOOOOOO", "one", "two", "printall"]
         .iter()
         .map(|s| s.to_string())
         .collect();
+
+    let mut wtr = vm::inst_writer::InstWriter::new();
+    wtr.load_str(0)
+        .store(0, 3)
+        .load_str(1)
+        .store(0, 4)
+        .get(5) // printall
+        .load_str(2) // WOOHOO
+        .get(3) // one
+        .get(4) // two
+        .invoke(3); // printall("WOOHOO", one, two)
+    let code = wtr.complete();
 
     // TODO:
     // INSTRUCTIONS -> move to clike enums with bytes
@@ -91,12 +94,12 @@ fn main() {
     // println(one);
     // */
 
-    let mut vm = VM::new(wtr, string_pool);
+    let mut vm = VM::new(code, string_pool);
     let mut cont = StackFrame::default();
 
     use rt::function::NativeFunction;
     cont.tables.insert(
-        hstr("printall"),
+        String::from("printall"),
         NativeFunction::new("printall", |args| {
             for rc in args {
                 println!("{}", rc);
