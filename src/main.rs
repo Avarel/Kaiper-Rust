@@ -11,29 +11,75 @@ mod lexer;
 mod vm;
 mod parser;
 
-use vm::{VM, StackFrame};
+use vm::{VM, VMFrame};
 
 use std::rc::Rc;
 
 fn main() {
     // loop_read();
     // return;
-    let string_pool: Vec<String> = vec!["hello there", "good bye", "WOOHOOOOOO", "one", "two", "printall"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+    // let string_pool: Vec<String> = vec!["hello there", "good bye", "WOOHOOOOOO", "one", "two", "printall"]
+    //     .iter()
+    //     .map(|s| s.to_string())
+    //     .collect();
 
-    let mut wtr = vm::inst_writer::InstWriter::new();
-    wtr.load_str(0)
-        .store(0, 3)
-        .load_str(1)
-        .store(0, 4)
-        .get(5) // printall
-        .load_str(2) // WOOHOO
-        .get(3) // one
-        .get(4) // two
-        .invoke(3); // printall("WOOHOO", one, two)
-    let code = wtr.complete();
+    // let mut wtr = vm::inst_writer::InstWriter::new();
+    // wtr.load_str(0)
+    //     .store(0, 3)
+    //     .load_str(1)
+    //     .store(0, 4)
+    //     .get(5) // printall
+    //     .load_str(2) // WOOHOO
+    //     .get(3) // one
+    //     .get(4) // two
+    //     .invoke(3); // printall("WOOHOO", one, two)
+    // let code = wtr.complete();
+
+    use parser::ast::Expr;
+    let expr = Expr::Stmts(vec![
+        Expr::Let(
+            String::from("hello"), 
+            Box::new(Expr::String(String::from("hello there lol")))
+        ),
+        Expr::Block(Box::new(
+            Expr::Stmts(vec![
+                Expr::Invoke(
+                    Box::new(Expr::Identifier(String::from("printall"))), 
+                    vec![Expr::Identifier(String::from("hello"))]
+                ),
+                Expr::Assign(
+                    String::from("hello"), 
+                    Box::new(Expr::String(String::from("something completely different")))
+                ),
+                Expr::Invoke(
+                    Box::new(Expr::Identifier(String::from("printall"))), 
+                    vec![Expr::Identifier(String::from("hello"))]
+                )
+            ])
+        )),
+        Expr::Block(Box::new(
+            Expr::Stmts(vec![
+                Expr::Let(
+                    String::from("hello"), 
+                    Box::new(Expr::String(String::from("monkaMEGA")))
+                ),
+                Expr::Invoke(
+                    Box::new(Expr::Identifier(String::from("printall"))), 
+                    vec![Expr::Identifier(String::from("hello"))]
+                )
+            ])
+        )),
+        Expr::Invoke(
+            Box::new(Expr::Identifier(String::from("printall"))), 
+            vec![Expr::Identifier(String::from("hello"))]
+        )
+    ]);
+
+    let (code, string_pool) = vm::compiler::Compiler::new().complete(&expr).unwrap();
+
+    // let expr = vec![
+
+    // ]
 
     // TODO:
     // INSTRUCTIONS -> move to clike enums with bytes
@@ -95,7 +141,7 @@ fn main() {
     // */
 
     let mut vm = VM::new(code, string_pool);
-    let mut cont = StackFrame::default();
+    let mut cont = VMFrame::default();
 
     use rt::function::NativeFunction;
     cont.tables.insert(
@@ -121,14 +167,6 @@ fn main() {
             }
         }
     }
-}
-
-pub fn hstr(string: &str) -> u64 {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::default();
-    string.to_owned().hash(&mut hasher);
-    hasher.finish()
 }
 
 // fn get_store(id: &str) -> Inst {

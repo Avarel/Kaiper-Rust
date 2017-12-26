@@ -2,7 +2,8 @@ use std::io::Error;
 
 #[derive(Debug)]
 pub enum VMErr {
-    UnknownInstruction,
+    UnknownInstruction(u8),
+    UnimplementedInstruction,
     Internal,
     UnexpectedReadEOF,
     InterruptedRead,

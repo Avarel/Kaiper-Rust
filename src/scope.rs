@@ -27,11 +27,11 @@ impl VarTables {
     }
 
     pub fn insert_rc(&mut self, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
-        self.insert_rc_ptr(0, k, v)
+        self.insert_index_rc(0, k, v)
     }
 
-    pub fn insert_rc_ptr(&mut self, ptr_offset: usize, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
-        let index = self.tables.len() - 1 - ptr_offset;
+    pub fn insert_index_rc(&mut self, table_index: usize, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
+        let index = self.tables.len() - 1 - table_index;
         self.hash_map_mut(index).insert(k, v)
     }
 
@@ -60,14 +60,14 @@ impl VarTables {
     }
 
     /// Returns a reference to the immediate HashMap.
-    pub fn hash_map(&self, ptr: usize) -> Ref<HashMap<String, Rc<Obj>>> {
-        RefCell::borrow(&self.tables[ptr])
+    pub fn hash_map(&self, table_index: usize) -> Ref<HashMap<String, Rc<Obj>>> {
+        RefCell::borrow(&self.tables[table_index])
     }
 
     // FOOL, you've never seen hacks like THESE
     /// Returns a mutable reference to the immediate HashMap.
-    pub fn hash_map_mut(&self, ptr: usize) -> RefMut<HashMap<String, Rc<Obj>>> {
-        RefCell::borrow_mut(&self.tables[ptr])
+    pub fn hash_map_mut(&self, table_index: usize) -> RefMut<HashMap<String, Rc<Obj>>> {
+        RefCell::borrow_mut(&self.tables[table_index])
     }
 }
 

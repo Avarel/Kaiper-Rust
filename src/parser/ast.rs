@@ -15,6 +15,8 @@ pub enum Expr {
     BinaryOp(Box<Expr>, BinaryOp, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
 
+    Invoke(Box<Expr>, Vec<Expr>),
+
     // Variables
     Identifier(String),
     Let(String, Box<Expr>),

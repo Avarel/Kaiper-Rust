@@ -34,7 +34,7 @@ impl InstWriter {
     stub!(load_true, Inst::LoadTrue);
     stub!(load_false, Inst::LoadFalse);
     stub!(load_str, Inst::LoadStr, string_pool_index: u64 => write_u64);
-    stub!(store, Inst::Store, table: u64 => write_u64, string_pool_index: u64 => write_u64);
+    stub!(store, Inst::Store, table_index: u64 => write_u64, string_pool_index: u64 => write_u64);
     stub!(get, Inst::Get, string_pool_index: u64 => write_u64);
     stub!(ret, Inst::Return);
     stub!(yld, Inst::Yield);

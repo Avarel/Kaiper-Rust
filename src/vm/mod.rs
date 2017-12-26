@@ -18,16 +18,16 @@ pub struct VM {
     string_pool: Vec<String>,
 }
 
-pub struct StackFrame {
+pub struct VMFrame {
     pub head: u64,
     pub end: Option<u64>,
     pub stack: Vec<Rc<Obj>>,
     pub tables: VarTables,
 }
 
-impl Default for StackFrame {
+impl Default for VMFrame {
     fn default() -> Self {
-        StackFrame {
+        VMFrame {
             head: 0,
             end: None,
             stack: Vec::new(),
@@ -47,10 +47,10 @@ impl VM {
     }
 
     pub fn run(&mut self) -> Answer {
-        self.run_context(&mut StackFrame::default())
+        self.run_context(&mut VMFrame::default())
     }
 
-    pub fn run_context(&mut self, ctx: &mut StackFrame) -> Answer {
+    pub fn run_context(&mut self, ctx: &mut VMFrame) -> Answer {
         let end = ctx.end.unwrap_or_else(|| self.len);
 
         self.cursor.set_position(ctx.head);
@@ -67,10 +67,11 @@ impl VM {
     }
 
     fn fetch(&mut self) -> Result<Inst, VMErr> {
-        Inst::from_u8(self.cursor.read_u8().map_err(self::map_read_err)?).ok_or(VMErr::UnknownInstruction)
+        let byte = self.cursor.read_u8().map_err(self::map_read_err)?;
+        Inst::from_u8(byte).ok_or_else(|| VMErr::UnknownInstruction(byte))
     }
 
-    fn execute(&mut self, ctx: &mut StackFrame) -> Result<bool, VMErr> {
+    fn execute(&mut self, ctx: &mut VMFrame) -> Result<bool, VMErr> {
         macro_rules! op_impl {
             ($stack: expr, $id: ident, $vm: ident) => {{
                 let rhs = $stack.pop().unwrap();
@@ -115,7 +116,7 @@ impl VM {
                 let table = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
                 let table_index = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
                 let obj = ctx.stack.pop().unwrap();
-                ctx.tables.insert_rc_ptr(table as usize, self.string_pool[table_index as usize].to_owned(), obj);
+                ctx.tables.insert_index_rc(table as usize, self.string_pool[table_index as usize].to_owned(), obj);
             }
             Invoke => {
                 let arity = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
@@ -137,7 +138,10 @@ impl VM {
                 let head = self.cursor.read_u64::<LE>().map_err(self::map_read_err)?;
                 self.cursor.set_position(head);
             }
-            _ => return Err(VMErr::UnknownInstruction),
+            PopStack => {
+                ctx.stack.pop();
+            }
+            _ => return Err(VMErr::UnimplementedInstruction),
         }
 
         Ok(false)
