@@ -37,6 +37,14 @@ fn main() {
 
     use parser::ast::Expr;
     let expr = Expr::Stmts(vec![
+        /*Expr::Invoke(
+            Box::new(Expr::Identifier(String::from("printall"))), 
+            vec![Expr::If(
+                Box::new(Expr::Boolean(true)),
+                Box::new(Expr::Int(11231)), 
+                Some(Box::new(Expr::Int(23439))),
+            )]
+        ),
         Expr::Let(
             String::from("hello"), 
             Box::new(Expr::String(String::from("hello there lol")))
@@ -72,10 +80,30 @@ fn main() {
         Expr::Invoke(
             Box::new(Expr::Identifier(String::from("printall"))), 
             vec![Expr::Identifier(String::from("hello"))]
-        )
+        ),*/
+        Expr::If(
+            Box::new(Expr::Boolean(true)),
+            Box::new(Expr::Invoke(
+                Box::new(Expr::Identifier(String::from("printall"))), 
+                vec![Expr::String(String::from("hello"))]
+            )),
+            Some(Box::new(
+                Expr::If(
+                    Box::new(Expr::Boolean(true)),
+                    Box::new(Expr::Invoke(
+                        Box::new(Expr::Identifier(String::from("printall"))), 
+                        vec![Expr::String(String::from("WEW"))]
+                    )),
+                    None,
+                ),
+            )),
+        ),
+        //Expr::Int(123456789),
     ]);
 
-    let (code, string_pool) = vm::compiler::Compiler::new().complete(&expr).unwrap();
+    let bytes = vm::compiler::Compiler::new().compile(&expr).unwrap();
+
+    println!("Compilation complete!");
 
     // let expr = vec![
 
@@ -140,7 +168,7 @@ fn main() {
     // println(one);
     // */
 
-    let mut vm = VM::new(code, string_pool);
+    let mut vm = VM::load(bytes).unwrap();
     let mut cont = VMFrame::default();
 
     use rt::function::NativeFunction;

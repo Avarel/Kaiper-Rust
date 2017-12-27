@@ -1,47 +1,84 @@
 // eventually migrate to binary
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Inst {
-    // Load a null reference onto the stack
+    // Documentation
+    // (byte count) 
+    // (following bytes...)
+
+    // Load a null reference onto the stack.
+    // 1 byte.
     LoadNull = 0,
 
-    // Load an int onto the stack
-    LoadInt = 1, // i32
-    // Load a number onto the stack
-    LoadNum = 2, // f64
+    // Load an int onto the stack.
+    // 5 bytes.
+    // int: i32
+    LoadInt = 1,
 
-    // Load a boolean onto the stack
-    LoadTrue = 3, // u8
+    // Load a number onto the stack.
+    // 9 bytes. 
+    // number: f64
+    LoadNum = 2, 
+
+    // Load a boolean onto the stack.
+    // 1 byte.
+    LoadTrue = 3,
     LoadFalse = 4,
 
-    // Load a string onto the stack
-    LoadStr = 5, // u64
+    // Load a string with the index the string pool onto the stack.
+    // 3 bytes.
+    // string_pool_index: u16
+    LoadStr = 5,
 
-    // Pop the stack and store an obj onto the heap
-    Store = 6, // u64, u64
-    // Get and push an obj on the heap onto the stack
-    Get = 7, // u64
+    // Pop the stack and store an object onto the variable tables.
+    // 5 bytes.
+    // table_index: u16, string_pool_index: u16
+    Store = 6, 
 
-    // Pop and return an answer, stopping
+    // Get and push an object on the heap onto the stack.
+    // 3 bytes.
+    // string_pool_index: u16
+    Get = 7,
+
+    // Pop and return an answer, stopping execution.
+    // 1 byte.
     Return = 8,
-    // Pop and yield an answer, suspending the head
+    // Pop and yield an answer, suspending the instruction pointer.
+    // 1 byte.
     Yield = 9,
 
-    // Pop 2 from the stack and do the operation
+    // Pop 2 objects from the stack and perform the operation.
+    // 1 byte.
     Add = 10,
     Sub = 11,
     Mul = 12,
     Div = 13,
 
-    Invoke = 14, // u64
+    // Pop (arity + 1) number of objects from the stack and perform invocation operation.
+    // 2 byte.
+    // arity: u8
+    Invoke = 14,
 
-    // Goto location
-    Jump = 15, // u64
+    // Set the instruction pointer.
+    // 9 bytes.
+    // address: u64
+    Jump = 15,
 
+    // Pop the stack and set the instruction pointer if the truth value of the pop is false.
+    // 9 bytes.
+    // address: u64
+    ElseJump = 19, 
+
+    // Push a variable table.
+    // 1 byte.
     PushTable = 16,
+
+    // Pop a variable table.
+    // 1 byte.
     PopTable = 17,
 
-    // Just pop a value off a stack and ignore it
-    PopStack = 18,
+    // Pop a value off a stack and ignore it.
+    // 1 byte.
+    PopStack = 18,    
 }
 
 impl Inst {
@@ -67,6 +104,7 @@ impl Inst {
             16 => PushTable,
             17 => PopTable,
             18 => PopStack,
+            19 => ElseJump,
             _ => return None,
         })
     }

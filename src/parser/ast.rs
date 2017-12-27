@@ -10,6 +10,9 @@ pub enum Expr {
     Block(Box<Expr>),
     Stmts(Vec<Expr>),
     Return(Box<Expr>),
+    Yield(Box<Expr>),
+
+    If(Box<Expr>, Box<Expr>, Option<Box<Expr>>),
 
     // Operation
     BinaryOp(Box<Expr>, BinaryOp, Box<Expr>),
