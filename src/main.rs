@@ -82,23 +82,22 @@ fn main() {
             vec![Expr::Identifier(String::from("hello"))]
         ),*/
         Expr::If(
-            Box::new(Expr::Boolean(true)),
+            Box::new(Expr::Boolean(false)),
             Box::new(Expr::Invoke(
                 Box::new(Expr::Identifier(String::from("printall"))), 
                 vec![Expr::String(String::from("hello"))]
             )),
             Some(Box::new(
                 Expr::If(
-                    Box::new(Expr::Boolean(true)),
+                    Box::new(Expr::Boolean(false)),
                     Box::new(Expr::Invoke(
                         Box::new(Expr::Identifier(String::from("printall"))), 
                         vec![Expr::String(String::from("WEW"))]
                     )),
-                    None,
+                    Some(Box::new(Expr::Int(1234))),
                 ),
             )),
         ),
-        //Expr::Int(123456789),
     ]);
 
     let bytes = vm::compiler::Compiler::new().compile(&expr).unwrap();

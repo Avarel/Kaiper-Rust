@@ -66,7 +66,7 @@ pub enum Inst {
     // Pop the stack and set the instruction pointer if the truth value of the pop is false.
     // 9 bytes.
     // address: u64
-    ElseJump = 19, 
+    JumpIfFalse = 19, 
 
     // Push a variable table.
     // 1 byte.
@@ -78,7 +78,7 @@ pub enum Inst {
 
     // Pop a value off a stack and ignore it.
     // 1 byte.
-    PopStack = 18,    
+    PopIgnore = 18,    
 }
 
 impl Inst {
@@ -103,8 +103,8 @@ impl Inst {
             15 => Jump,
             16 => PushTable,
             17 => PopTable,
-            18 => PopStack,
-            19 => ElseJump,
+            18 => PopIgnore,
+            19 => JumpIfFalse,
             _ => return None,
         })
     }

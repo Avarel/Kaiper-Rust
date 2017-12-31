@@ -96,7 +96,7 @@ impl Compiler {
                 for expr in &vec[0..vec.len() - 1] {
                     self.write(expr, false)?;
                 }
-                self.write(&vec[vec.len() - 1], true)?;
+                self.write(&vec[vec.len() - 1], used)?;
             }
             Expr::Return(ref expr) => {
                 self.write(expr, true)?;
@@ -128,19 +128,18 @@ impl Compiler {
             Expr::If(ref truth, ref if_branch, ref else_branch) => {
                 self.write(truth, true)?;
 
-                let address = (9 + self.writer.position() + Self::byte_size(if_branch, used)) as u64;
-                // size of else_jump + if_branch size
+                let address = self.writer.position() + 9 /*jump_if_else*/ + Self::byte_size(if_branch, used);
 
                 if let &Some(ref else_branch) = else_branch {
-                    self.writer.else_jump(address + 9); // size of if_branch + jump
+                    self.writer.jump_if_false(address + 9); // size of if_branch + jump
                     self.write(if_branch, used)?;
 
-                    let address = (self.writer.position() + Self::byte_size(else_branch, used) + 9) as u64; // size of else_branch + jump
+                    let address = self.writer.position() + Self::byte_size(else_branch, used) + 9/*jump*/; // size of else_branch + jump
                     self.writer.jump(address);
 
                     self.write(else_branch, used)?;
                 } else {
-                    self.writer.else_jump(address); // size of if_branch + jump
+                    self.writer.jump_if_false(address); // size of if_branch
                     self.write(if_branch, used)?;
                 }
             }
@@ -150,7 +149,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn byte_size(expr: &Expr, used: bool) -> usize {
+    fn byte_size(expr: &Expr, used: bool) -> u64 {
         macro_rules! if_use {
             ($expr: expr) => {
                 if used { $expr } else { 0 }
@@ -176,14 +175,14 @@ impl Compiler {
                 for expr in &vec[0..vec.len() - 1] {
                     bytes += Self::byte_size(expr, false);
                 }
-                bytes + Self::byte_size(&vec[vec.len() - 1], true);
+                bytes + Self::byte_size(&vec[vec.len() - 1], used);
                 bytes
             }
             // u8 (1) + %size of expr%
             Expr::Return(ref expr) | Expr::Yield(ref expr) => 1 + Self::byte_size(expr, true),
-            // u8 (1) + u8 (1) + %size of expr% + u8 (1) + u8 (1)
-            Expr::Block(ref expr) => 4 + Self::byte_size(expr, false),
-            // u8 (1) + u16 (2) + %size of expr%
+            // u8 (1) + %size of expr% + u8 (1)
+            Expr::Block(ref expr) => 2 + Self::byte_size(expr, false),
+            // u8 (1) + u8 (1) + %size of expr%
             Expr::Invoke(ref expr, ref vec) => {
                 let mut bytes = 2;
                 bytes += Self::byte_size(expr, true);
@@ -206,12 +205,13 @@ impl Compiler {
 
                 bytes
             }
+            // missing binary op and unary op
             _ => unimplemented!(),
         }
     }
 
     pub fn compile_separate(mut self, expr: &Expr) -> Result<(Vec<u8>, Vec<String>), String> {
-        self.write(expr, false)?;
+        self.write(expr, true)?;
         Ok((self.writer.complete(), self.string_pool))
     }
 

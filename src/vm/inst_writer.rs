@@ -24,8 +24,8 @@ impl InstWriter {
         InstWriter { buf }
     }
 
-    pub fn position(&self) -> usize {
-        self.buf.len()
+    pub fn position(&self) -> u64 {
+        self.buf.len() as u64
     }
 
     stub!(load_null, Inst::LoadNull);
@@ -48,8 +48,8 @@ impl InstWriter {
     stub!(push_table, Inst::PushTable);
     stub!(pop_table, Inst::PopTable);
     stub!(jump, Inst::Jump, address: u64 => write_u64);
-    stub!(pop_stack, Inst::PopStack);
-    stub!(else_jump, Inst::ElseJump, address: u64 => write_u64);
+    stub!(pop_stack, Inst::PopIgnore);
+    stub!(jump_if_false, Inst::JumpIfFalse, address: u64 => write_u64);
 
     pub fn complete(self) -> Vec<u8> {
         self.buf

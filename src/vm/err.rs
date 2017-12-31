@@ -9,3 +9,9 @@ pub enum VMErr {
     UndefinedVariable(String),
     RtErr(String),
 }
+
+impl From<Error> for VMErr {
+    fn from(e: Error) -> Self {
+        VMErr::IOErr(e)
+    }
+}
