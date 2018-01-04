@@ -7,11 +7,23 @@ pub enum VMErr {
     Internal,
     IOErr(Error),
     UndefinedVariable(String),
-    RtErr(String),
+    RTErr(RTErr),
+}
+
+#[derive(Debug)]
+pub enum RTErr {
+    TypeMismatch,
+    Unimplemented
 }
 
 impl From<Error> for VMErr {
     fn from(e: Error) -> Self {
         VMErr::IOErr(e)
+    }
+}
+
+impl From<RTErr> for VMErr {
+    fn from(e: RTErr) -> Self {
+        VMErr::RTErr(e)
     }
 }

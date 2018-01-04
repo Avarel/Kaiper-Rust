@@ -6,8 +6,26 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct Parser {
-    ast: Vec<Expr>,
+    ast: Vec<Token>,
     gramar: Grammar,
+}
+
+impl Parser {
+    fn parse() {
+
+    }
+
+    fn parse_prefix(&mut self) {
+
+    }
+
+    fn parse_infix(&mut self) {
+
+    }
+
+    fn precedence(&self) {
+        
+    }
 }
 
 #[derive(Clone)]

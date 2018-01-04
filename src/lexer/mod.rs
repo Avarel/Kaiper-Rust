@@ -1,5 +1,6 @@
 pub mod tokens;
 
+use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::str::Chars;
 use lexer::tokens::{Token, TokenType};
@@ -29,68 +30,68 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Token>, String> {
-        let mut list = Vec::new();
+    pub fn parse(&mut self) -> Result<VecDeque<Token>, String> {
+        let mut list = VecDeque::new();
         self.parse_into_vec(&mut list)?;
         Ok(list)
     }
 
-    pub fn parse_into_vec(&mut self, list: &mut Vec<Token>) -> Result<(), String> {
+    pub fn parse_into_vec(&mut self, list: &mut VecDeque<Token>) -> Result<(), String> {
         while let Some(c) = self.stream.next() {
             self.parse_char_into_vec(c, list)?;
         }
         Ok(())
     }
 
-    pub fn parse_char_into_vec(&mut self, c: char, list: &mut Vec<Token>) -> Result<(), String> {
+    pub fn parse_char_into_vec(&mut self, c: char, list: &mut VecDeque<Token>) -> Result<(), String> {
         match c {
-            '\n' => list.push(self.make_token(TokenType::NewLine)),
+            '\n' => list.push_back(self.make_token(TokenType::NewLine)),
             _x if _x.is_whitespace() => (),
-            ';' => list.push(self.make_token(TokenType::Semi)),
-            '(' => list.push(self.make_token(TokenType::LeftParen)),
-            ')' => list.push(self.make_token(TokenType::RightParen)),
-            '[' => list.push(self.make_token(TokenType::LeftBracket)),
-            ']' => list.push(self.make_token(TokenType::RightBracket)),
-            '{' => list.push(self.make_token(TokenType::LeftBrace)),
-            '}' => list.push(self.make_token(TokenType::RightBrace)),
-            ':' => list.push(self.make_token(TokenType::Colon)),
-            '+' => list.push(self.make_token(TokenType::Plus)),
-            '-' => list.push(self.make_token(TokenType::Minus)),
-            '*' => list.push(self.make_token(TokenType::Asterisk)),
-            '/' => list.push(self.make_token(TokenType::Slash)),
-            '.' => list.push(self.make_token(TokenType::Dot)),
-            ',' => list.push(self.make_token(TokenType::Comma)),
+            ';' => list.push_back(self.make_token(TokenType::Semi)),
+            '(' => list.push_back(self.make_token(TokenType::LeftParen)),
+            ')' => list.push_back(self.make_token(TokenType::RightParen)),
+            '[' => list.push_back(self.make_token(TokenType::LeftBracket)),
+            ']' => list.push_back(self.make_token(TokenType::RightBracket)),
+            '{' => list.push_back(self.make_token(TokenType::LeftBrace)),
+            '}' => list.push_back(self.make_token(TokenType::RightBrace)),
+            ':' => list.push_back(self.make_token(TokenType::Colon)),
+            '+' => list.push_back(self.make_token(TokenType::Plus)),
+            '-' => list.push_back(self.make_token(TokenType::Minus)),
+            '*' => list.push_back(self.make_token(TokenType::Asterisk)),
+            '/' => list.push_back(self.make_token(TokenType::Slash)),
+            '.' => list.push_back(self.make_token(TokenType::Dot)),
+            ',' => list.push_back(self.make_token(TokenType::Comma)),
             '=' => match self.stream.peek() {
                 Some(&'=') => {
-                    list.push(self.make_token(TokenType::Eq));
+                    list.push_back(self.make_token(TokenType::Eq));
                     self.stream.next();
                 }
-                _ => list.push(self.make_token(TokenType::Assign)),
+                _ => list.push_back(self.make_token(TokenType::Assign)),
             },
             '<' => match self.stream.peek() {
                 Some(&'=') => {
-                    list.push(self.make_token(TokenType::Lte));
+                    list.push_back(self.make_token(TokenType::Lte));
                     self.stream.next();
                 }
-                _ => list.push(self.make_token(TokenType::Lt)),
+                _ => list.push_back(self.make_token(TokenType::Lt)),
             },
             '>' => match self.stream.peek() {
                 Some(&'=') => {
-                    list.push(self.make_token(TokenType::Gt));
+                    list.push_back(self.make_token(TokenType::Gt));
                     self.stream.next();
                 }
-                _ => list.push(self.make_token(TokenType::Gte)),
+                _ => list.push_back(self.make_token(TokenType::Gte)),
             },
             '"' => self.string('"', true, list)?,
             '\'' => self.string('\'', false, list)?,
-            'A'...'Z' | 'a'...'z' | '_' => list.push(self.name(c)),
-            '0'...'9' => list.push(self.number(c)?),
+            'A'...'Z' | 'a'...'z' | '_' => list.push_back(self.name(c)),
+            '0'...'9' => list.push_back(self.number(c)?),
             _ => return Err(format!("Illegal character {}", c)),
         }
         Ok(())
     }
 
-    fn string(&mut self, delim: char, template: bool, list: &mut Vec<Token>) -> Result<(), String> {
+    fn string(&mut self, delim: char, template: bool, list: &mut VecDeque<Token>) -> Result<(), String> {
         let mut buffer = String::new();
         let mut not_terminated = true;
 
@@ -102,11 +103,11 @@ impl<'a> Tokenizer<'a> {
                     if let Some(&'{') = self.stream.peek() {
                         self.stream.next();
 
-                        list.push(self.make_token_str(TokenType::String, buffer.to_owned()));
-                        list.push(self.make_token(TokenType::Plus));
+                        list.push_back(self.make_token_str(TokenType::String, buffer.to_owned()));
+                        list.push_back(self.make_token(TokenType::Plus));
                         buffer.clear();
 
-                        list.push(self.make_token(TokenType::LeftParen));
+                        list.push_back(self.make_token(TokenType::LeftParen));
 
                         let mut braces = 0;
                         while let Some(c) = self.stream.next() {
@@ -124,10 +125,10 @@ impl<'a> Tokenizer<'a> {
                                 _ => self.parse_char_into_vec(c, list)?,
                             }
                         }
-                        list.push(self.make_token(TokenType::RightParen));
+                        list.push_back(self.make_token(TokenType::RightParen));
                     } else if self.stream.peek().map_or(false, |c| c.is_alphabetic()) {
-                        list.push(self.make_token_str(TokenType::String, buffer.to_owned()));
-                        list.push(self.make_token(TokenType::Plus));
+                        list.push_back(self.make_token_str(TokenType::String, buffer.to_owned()));
+                        list.push_back(self.make_token(TokenType::Plus));
                         buffer.clear();
 
                         buffer.push(self.stream.next().unwrap());
@@ -141,7 +142,7 @@ impl<'a> Tokenizer<'a> {
                     }
 
                     list.append(&mut Tokenizer::new(buffer.as_ref()).parse()?);
-                    list.push(self.make_token(TokenType::Plus));
+                    list.push_back(self.make_token(TokenType::Plus));
                     buffer.clear();
                 }
                 x if x == delim => {
@@ -160,7 +161,7 @@ impl<'a> Tokenizer<'a> {
             return Err(String::from("Unterminated"));
         }
 
-        list.push(self.make_token_str(TokenType::String, buffer));
+        list.push_back(self.make_token_str(TokenType::String, buffer));
 
         Ok(())
     }

@@ -34,7 +34,7 @@ impl InstWriter {
     stub!(load_true, Inst::LoadTrue);
     stub!(load_false, Inst::LoadFalse);
     stub!(load_str, Inst::LoadStr, string_pool_index: u16 => write_u16);
-    stub!(store, Inst::Store, table_index: u16 => write_u16, string_pool_index: u16 => write_u16);
+    stub!(store, Inst::Store, string_pool_index: u16 => write_u16);
     stub!(get, Inst::Get, string_pool_index: u16 => write_u16);
     stub!(ret, Inst::Return);
     stub!(yld, Inst::Yield);
@@ -45,8 +45,6 @@ impl InstWriter {
         self
     }
 
-    stub!(push_table, Inst::PushTable);
-    stub!(pop_table, Inst::PopTable);
     stub!(jump, Inst::Jump, address: u64 => write_u64);
     stub!(pop_stack, Inst::PopIgnore);
     stub!(jump_if_false, Inst::JumpIfFalse, address: u64 => write_u64);

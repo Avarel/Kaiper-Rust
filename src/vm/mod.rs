@@ -1,11 +1,11 @@
 pub mod inst;
 pub mod err;
-pub mod inst_writer;
+pub mod heap;
 pub mod compiler;
 
 use vm::inst::Inst;
-use vm::err::VMErr;
-use scope::VarTables;
+use vm::err::{VMErr, RTErr};
+use vm::heap::VMHeap;
 use rt::obj::Obj;
 use rt::null::Null;
 use std::rc::Rc;
@@ -15,7 +15,7 @@ use std::io::Cursor;
 
 pub struct VM {
     len: u64,
-    string_pool: Vec<String>,
+    sp: Vec<String>,
     cursor: Cursor<Vec<u8>>,
 }
 
@@ -23,7 +23,7 @@ pub struct VMFrame {
     pub ptr: u64,
     pub end: Option<u64>,
     pub stack: Vec<Rc<Obj>>,
-    pub tables: VarTables,
+    pub heap: VMHeap,
 }
 
 impl Default for VMFrame {
@@ -32,7 +32,7 @@ impl Default for VMFrame {
             ptr: 0,
             end: None,
             stack: Vec::new(),
-            tables: VarTables::new(),
+            heap: VMHeap::new(),
         }
     }
 }
@@ -40,14 +40,14 @@ impl Default for VMFrame {
 type Answer = Result<Option<Rc<Obj>>, VMErr>;
 impl VM {
     pub fn load(mut bytes: Vec<u8>) -> Result<Self, VMErr> {
-        let (string_pool, ptr_offset) = Self::load_string_pool(&bytes)?;
+        let (sp, ptr_offset) = Self::load_string_pool(&bytes)?;
 
         let program = bytes.split_off(ptr_offset as usize);
         let len = program.len() as u64;
         let cursor = Cursor::new(program);
 
         Ok(VM {
-            string_pool,
+            sp,
             len,
             cursor,
         })
@@ -71,11 +71,11 @@ impl VM {
         Ok((string_pool, cursor.position()))
     }
 
-    pub fn with_string_pool(inst: Vec<u8>, string_pool: Vec<String>) -> Self {
+    pub fn with_string_pool(inst: Vec<u8>, sp: Vec<String>) -> Self {
         VM {
             len: inst.len() as u64,
             cursor: Cursor::new(inst),
-            string_pool,
+            sp,
         }
     }
 
@@ -107,11 +107,11 @@ impl VM {
     fn bin_op(
         &mut self,
         ctx: &mut VMFrame,
-        func: fn(&Obj, Rc<Obj>, &mut VM) -> Result<Rc<Obj>, String>,
+        func: fn(&Obj, Rc<Obj>, &mut VM) -> Result<Rc<Obj>, RTErr>,
     ) -> Result<(), VMErr> {
         let rhs = ctx.stack.pop().unwrap();
         let lhs = &*ctx.stack.pop().unwrap();
-        ctx.stack.push(func(lhs, rhs, self).map_err(VMErr::RtErr)?);
+        ctx.stack.push(func(lhs, rhs, self)?);
         Ok(())
     }
 
@@ -134,27 +134,25 @@ impl VM {
             LoadStr => {
                 let index = self.cursor.read_u16::<LE>().map_err(VMErr::IOErr)?;
                 ctx.stack
-                    .push(Rc::new(self.string_pool[index as usize].to_owned()));
+                    .push(Rc::new(self.sp[index as usize].to_owned()));
             }
             Add => self.bin_op(ctx, Obj::add)?,
             Sub => self.bin_op(ctx, Obj::sub)?,
             Mul => self.bin_op(ctx, Obj::mul)?,
             Div => self.bin_op(ctx, Obj::div)?,
             Get => {
-                let string_pool_index = self.cursor.read_u16::<LE>()? as usize;
-                let id = &self.string_pool[string_pool_index];
-                match ctx.tables.get(id) {
+                let sp_index = self.cursor.read_u16::<LE>()? as usize;
+                let id = &self.sp[sp_index];
+                match ctx.heap.get(id) {
                     Some(rc) => ctx.stack.push(rc),
                     None => return Err(VMErr::UndefinedVariable(id.to_owned())),
                 }
             }
             Store => {
-                let table = self.cursor.read_u16::<LE>()?;
-                let table_index = self.cursor.read_u16::<LE>()? as usize;
+                let sp_index = self.cursor.read_u16::<LE>()? as usize;
                 let obj = ctx.stack.pop().unwrap();
-                ctx.tables.insert_index_rc(
-                    table as usize,
-                    self.string_pool[table_index].to_owned(),
+                ctx.heap.insert_rc(
+                    self.sp[sp_index].to_owned(),
                     obj,
                 );
             }
@@ -168,11 +166,9 @@ impl VM {
                 }
 
                 let mut target = &mut ctx.stack.pop().unwrap();
-                let result = target.invoke(vec, self).map_err(VMErr::RtErr)?;
+                let result = target.invoke(vec, self).map_err(VMErr::RTErr)?;
                 ctx.stack.push(result);
             }
-            PushTable => ctx.tables.push_table(),
-            PopTable => ctx.tables.pop_table(),
             Yield => return Ok(true),
             JumpIfFalse => {
                 let ptr = self.cursor.read_u64::<LE>()?;

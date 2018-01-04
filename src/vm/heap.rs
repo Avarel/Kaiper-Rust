@@ -1,24 +1,14 @@
 use std::rc::Rc;
-use std::cell::{Ref, RefCell, RefMut};
-
 use std::collections::HashMap;
 use rt::obj::Obj;
 
-pub struct VarTables {
-    pub tables: Vec<Rc<RefCell<HashMap<String, Rc<Obj>>>>>,
+pub struct VMHeap {
+    pub table: HashMap<String, Rc<Obj>>,
 }
 
-impl VarTables {
+impl VMHeap {
     pub fn new() -> Self {
-        VarTables { tables: vec![Rc::new(RefCell::new(HashMap::new()))] }
-    }
-
-    pub fn pop_table(&mut self) {
-        self.tables.pop();
-    }
-
-    pub fn push_table(&mut self) {
-        self.tables.push(Rc::new(RefCell::new(HashMap::new())));
+        VMHeap { table: HashMap::new() }
     }
 
     /// Insert a value into the immediate scope.
@@ -27,47 +17,14 @@ impl VarTables {
     }
 
     pub fn insert_rc(&mut self, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
-        self.insert_index_rc(0, k, v)
-    }
-
-    pub fn insert_index_rc(&mut self, table_index: usize, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
-        let index = self.tables.len() - 1 - table_index;
-        self.hash_map_mut(index).insert(k, v)
+        self.table.insert(k, v)
     }
 
     /// Get a value from the scope.
     /// If the value doesn't exist in the scope, use fallback
     /// values from fallback scopes (which may or may not exist).
     pub fn get(&self, k: &String) -> Option<Rc<Obj>> {
-        self.tables
-            .iter()
-            .rev()
-            .map(|rc| RefCell::borrow(rc))
-            .map(|map| map.get(k).map(|opt| opt.clone()))
-            .find(|opt| opt.is_some())?
-    }
-
-    /// Returns if the scope and the parent scopes contain the key.
-    pub fn any_contains(&self, k: &String) -> bool {
-        self.tables.iter().rev().map(|rc| RefCell::borrow(rc)).any(
-            |map| map.contains_key(k),
-        )
-    }
-
-    /// Returns if the immediate scope contains the key.
-    pub fn map_contains(&self, k: &String) -> bool {
-        self.hash_map(self.tables.len() - 1).contains_key(k)
-    }
-
-    /// Returns a reference to the immediate HashMap.
-    pub fn hash_map(&self, table_index: usize) -> Ref<HashMap<String, Rc<Obj>>> {
-        RefCell::borrow(&self.tables[table_index])
-    }
-
-    // FOOL, you've never seen hacks like THESE
-    /// Returns a mutable reference to the immediate HashMap.
-    pub fn hash_map_mut(&self, table_index: usize) -> RefMut<HashMap<String, Rc<Obj>>> {
-        RefCell::borrow_mut(&self.tables[table_index])
+        self.table.get(k).cloned()
     }
 }
 
@@ -141,8 +98,8 @@ impl VarTables {
 //     }
 // }
 
-impl Clone for VarTables {
+impl Clone for VMHeap {
     fn clone(&self) -> Self {
-        VarTables { tables: self.tables.clone() }
+        VMHeap { table: self.table.clone() }
     }
 }

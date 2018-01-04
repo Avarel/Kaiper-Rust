@@ -21,9 +21,11 @@ pub enum Expr {
     Invoke(Box<Expr>, Vec<Expr>),
 
     // Variables
-    Identifier(String),
+    Ident(String),
     Let(String, Box<Expr>),
     Assign(String, Box<Expr>),
+
+    ExternIdent(String),
 }
 
 #[derive(Debug)]

@@ -5,7 +5,6 @@ extern crate downcast_rs;
 extern crate rustyline;
 extern crate byteorder;
 
-mod scope;
 mod rt;
 mod lexer;
 mod vm;
@@ -15,6 +14,12 @@ use vm::{VM, VMFrame};
 
 use std::rc::Rc;
 
+// use std::mem;
+// unsafe fn get_erased_mut<'a, 'b>(vec: & mut Vec<u8>, start: usize, end: usize) -> &'b mut [u8] {
+//     let ptr = vec.as_mut_ptr();
+//     mem::transmute((ptr.offset(start as isize), end - start))
+// }
+
 fn main() {
     // loop_read();
     // return;
@@ -22,6 +27,31 @@ fn main() {
     //     .iter()
     //     .map(|s| s.to_string())
     //     .collect();
+
+    // use vm::alloc::Chunk;
+    // let mut thing = [1,2,3];
+    // {
+    //     let mut chunk = Chunk::Heap(&mut thing);
+    //     chunk.bytes_mut()[1] = 6;
+    // }
+    // println!("{:?}", thing);
+    // let mut vec: Vec<u8> = vec![1,2,3];
+
+    // let view = unsafe { get_erased_mut(&mut vec, 1, 3) };
+    // let view2 = unsafe { get_erased_mut(&mut vec, 0, 2) };
+
+    // println!("{:?}", view);
+
+    // view[0] = 6;
+
+    // println!("{:?}", view);
+    // // println!("{:?}", vec);
+
+    // // vec[1] = 5;
+
+    // println!("{:?}", view);
+    // println!("{:?}", view2);
+    // println!("{:?}", vec);
 
     // let mut wtr = vm::inst_writer::InstWriter::new();
     // wtr.load_str(0)
@@ -37,8 +67,9 @@ fn main() {
 
     use parser::ast::Expr;
     let expr = Expr::Stmts(vec![
-        /*Expr::Invoke(
-            Box::new(Expr::Identifier(String::from("printall"))), 
+        Expr::ExternIdent(String::from("printall")),
+        Expr::Invoke(
+            Box::new(Expr::Ident(String::from("printall"))), 
             vec![Expr::If(
                 Box::new(Expr::Boolean(true)),
                 Box::new(Expr::Int(11231)), 
@@ -52,16 +83,16 @@ fn main() {
         Expr::Block(Box::new(
             Expr::Stmts(vec![
                 Expr::Invoke(
-                    Box::new(Expr::Identifier(String::from("printall"))), 
-                    vec![Expr::Identifier(String::from("hello"))]
+                    Box::new(Expr::Ident(String::from("printall"))), 
+                    vec![Expr::Ident(String::from("hello"))]
                 ),
                 Expr::Assign(
                     String::from("hello"), 
                     Box::new(Expr::String(String::from("something completely different")))
                 ),
                 Expr::Invoke(
-                    Box::new(Expr::Identifier(String::from("printall"))), 
-                    vec![Expr::Identifier(String::from("hello"))]
+                    Box::new(Expr::Ident(String::from("printall"))), 
+                    vec![Expr::Ident(String::from("hello"))]
                 )
             ])
         )),
@@ -72,16 +103,16 @@ fn main() {
                     Box::new(Expr::String(String::from("monkaMEGA")))
                 ),
                 Expr::Invoke(
-                    Box::new(Expr::Identifier(String::from("printall"))), 
-                    vec![Expr::Identifier(String::from("hello"))]
+                    Box::new(Expr::Ident(String::from("printall"))), 
+                    vec![Expr::Ident(String::from("hello"))]
                 )
             ])
         )),
         Expr::Invoke(
-            Box::new(Expr::Identifier(String::from("printall"))), 
-            vec![Expr::Identifier(String::from("hello"))]
-        ),*/
-        Expr::If(
+            Box::new(Expr::Ident(String::from("printall"))), 
+            vec![Expr::Ident(String::from("hello"))]
+        ),
+        /*Expr::If(
             Box::new(Expr::Boolean(false)),
             Box::new(Expr::Invoke(
                 Box::new(Expr::Identifier(String::from("printall"))), 
@@ -97,7 +128,7 @@ fn main() {
                     Some(Box::new(Expr::Int(1234))),
                 ),
             )),
-        ),
+        ),*/
     ]);
 
     let bytes = vm::compiler::Compiler::new().compile(&expr).unwrap();
@@ -171,7 +202,7 @@ fn main() {
     let mut cont = VMFrame::default();
 
     use rt::function::NativeFunction;
-    cont.tables.insert(
+    cont.heap.insert(
         String::from("printall"),
         NativeFunction::new("printall", |args| {
             for rc in args {
