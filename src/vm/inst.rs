@@ -26,18 +26,27 @@ pub enum Inst {
 
     // Load a string with the index the string pool onto the stack.
     // 3 bytes.
-    // string_pool_index: u16
+    // sp_index: u16
     LoadStr = 5,
 
-    // Pop the stack and store an object onto the variable tables.
-    // 5 bytes.
-    // table_index: u16, string_pool_index: u16
-    Store = 6, 
-
-    // Get and push an object on the heap onto the stack.
+    // Pop the stack and store the object onto the variable tables.
     // 3 bytes.
-    // string_pool_index: u16
-    Get = 7,
+    // name_ptr: u16
+    StoreHeap = 6, 
+
+    // Get and push the object on the heap onto the stack.
+    // 3 bytes.
+    // name_ptr: u16
+    GetHeap = 7,
+
+    // Pop the stack and store the object local variable array.
+    // 3 bytes.
+    // index 
+    StoreLocal = 20,
+
+    // Get and push the object from the local variable array onto the stack.
+    // 3 bytes.
+    GetLocal = 21,
 
     // Pop and return an answer, stopping execution.
     // 1 byte.
@@ -63,14 +72,21 @@ pub enum Inst {
     // address: u64
     Jump = 15,
 
-    // Pop the stack and set the instruction pointer if the truth value of the pop is false.
-    // 9 bytes.
-    // address: u64
-    JumpIfFalse = 19,
+    // Drop a value from the heap.
+    // 3 bytes.
+    // name_ptr: u16
+    Delete = 16,
+
+    NewLocalCapacity = 17,
 
     // Pop a value off a stack and ignore it.
     // 1 byte.
     PopIgnore = 18,    
+
+    // Pop the stack and set the instruction pointer if the truth value of the pop is false.
+    // 9 bytes.
+    // address: u64
+    JumpIfFalse = 19,
 }
 
 impl Inst {
@@ -83,8 +99,8 @@ impl Inst {
             3 => LoadTrue,
             4 => LoadFalse,
             5 => LoadStr,
-            6 => Store,
-            7 => Get,
+            6 => StoreHeap,
+            7 => GetHeap,
             8 => Return,
             9 => Yield,
             10 => Add,
@@ -93,8 +109,11 @@ impl Inst {
             13 => Div,
             14 => Invoke,
             15 => Jump,
+            16 => Delete,
             18 => PopIgnore,
             19 => JumpIfFalse,
+            20 => StoreLocal,
+            21 => GetLocal,
             _ => return None,
         })
     }

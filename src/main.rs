@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![feature(option_filter, refcell_replace_swap)]
 
 #[macro_use]
 extern crate downcast_rs;
@@ -10,7 +11,8 @@ mod lexer;
 mod vm;
 mod parser;
 
-use vm::{VM, VMFrame};
+use vm::{VM};
+use vm::frame::VMFrame;
 
 use std::rc::Rc;
 
@@ -21,6 +23,7 @@ use std::rc::Rc;
 // }
 
 fn main() {
+
     // loop_read();
     // return;
     // let string_pool: Vec<String> = vec!["hello there", "good bye", "WOOHOOOOOO", "one", "two", "printall"]
@@ -202,7 +205,7 @@ fn main() {
     let mut cont = VMFrame::default();
 
     use rt::function::NativeFunction;
-    cont.heap.insert(
+    cont.set_heap(
         String::from("printall"),
         NativeFunction::new("printall", |args| {
             for rc in args {

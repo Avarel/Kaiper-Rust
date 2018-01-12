@@ -8,7 +8,7 @@ macro_rules! impl_op { // TODO make another macro that reduce further redundancy
         fn $id(&self, other: Rc<Obj>, _: &mut VM) -> Result<Rc<Obj>, RTErr> {
             if let Some(int) = other.downcast_ref::<i32>() {
                 Ok(Rc::new(self $token int))
-            } else if let Some (num) = other.downcast_ref::<f64>() {
+            } else if let Some(num) = other.downcast_ref::<f64>() {
                 Ok(Rc::new(*self as f64 $token num))
             } else {
                 Err(RTErr::TypeMismatch)

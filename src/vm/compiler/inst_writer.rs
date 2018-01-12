@@ -34,8 +34,13 @@ impl InstWriter {
     stub!(load_true, Inst::LoadTrue);
     stub!(load_false, Inst::LoadFalse);
     stub!(load_str, Inst::LoadStr, string_pool_index: u16 => write_u16);
-    stub!(store, Inst::Store, string_pool_index: u16 => write_u16);
-    stub!(get, Inst::Get, string_pool_index: u16 => write_u16);
+
+    stub!(store_heap, Inst::StoreHeap, sp_index: u16 => write_u16);
+    stub!(get_heap, Inst::GetHeap, sp_index: u16 => write_u16);
+    
+    stub!(store_local, Inst::StoreLocal, local_index: u16 => write_u16);
+    stub!(get_local, Inst::GetLocal, local_index: u16 => write_u16);
+    
     stub!(ret, Inst::Return);
     stub!(yld, Inst::Yield);
 

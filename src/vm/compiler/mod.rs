@@ -2,29 +2,32 @@ pub mod inst_writer;
 
 use parser::ast::Expr;
 use vm::compiler::inst_writer::InstWriter;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use byteorder::{WriteBytesExt, LE};
 
 pub struct Compiler {
     writer: InstWriter,
     sp: Vec<String>,
-    scope: CompilerScopes,
+    heap_scope: HashSet<String>,
+    local_scope: LocalScope,
 }
+
+/*
+11231
+hello there lol
+something completely different
+monkaMEGA
+something completely different
+Ans: null
+*/
 
 impl Compiler {
     pub fn new() -> Self {
         Compiler {
             writer: InstWriter::new(),
             sp: Vec::new(),
-            scope: CompilerScopes::new(),
-        }
-    }
-
-    pub fn write_to(buf: Vec<u8>) -> Self {
-        Compiler {
-            writer: InstWriter::write_to(buf),
-            sp: Vec::new(),
-            scope: CompilerScopes::new(),
+            heap_scope: HashSet::new(),
+            local_scope: LocalScope::new(),
         }
     }
 
@@ -44,6 +47,7 @@ impl Compiler {
         &mut self,
         expr: &Expr,
         used: bool, // is it used as an expr (if not pop it immediately after evaluation or never write it)
+        local: bool, // affects the let statements
     ) -> Result<(), String> {
         match *expr {
             Expr::Null => if used {
@@ -67,70 +71,90 @@ impl Compiler {
                 self.writer.load_str(sp_index);
             },
             Expr::ExternIdent(ref id) => {
-                self.scope.declare(id);
+                self.heap_scope.insert(id.clone());
             }
             Expr::Ident(ref id) => if used {
-                let name_ptr = self.scope
-                    .str_ptr(id)
-                    .ok_or(format!("Variable {} does not exist in scope", id))?;
+                if local {
+                    if let Some(local_index) = self.local_scope.index(id) {
+                        self.writer.get_local(local_index);
+                        return Ok(())
+                    }
+                }
 
-                let sp_index = self.string(&name_ptr) as u16;
+                if !self.heap_scope.contains(id) {
+                    return Err(format!("variable {} does not exist in scope", id));
+                }
 
-                self.writer.get(sp_index);
+                let sp_index = self.string(&id) as u16;
+
+                self.writer.get_heap(sp_index);
             },
-            Expr::Let(ref id, ref expr) => {
+            Expr::Let(ref name, ref expr) => {
                 if used {
                     return Err(String::from("let can not be used in expr format"));
                 }
-                self.write(expr, true)?;
+                self.write(expr, true, false)?;
 
-                let name_ptr = self.scope.declare(id);
+                if local {
+                    let local_index = self.local_scope.declare(name);
+                    self.writer.store_local(local_index);
+                    return Ok(())
+                }
 
-                println!("let {}", name_ptr);
+                // GLOBAL
+                if self.heap_scope.contains(name) {
+                    return Err(format!("duplicate definition for {}", name));
+                }
 
-                let sp_index = self.string(&name_ptr) as u16;
+                self.heap_scope.insert(name.clone());
+                let sp_index = self.string(&name) as u16;
 
-                self.writer.store(sp_index);
+                self.writer.store_heap(sp_index);
 
             }
-            Expr::Assign(ref id, ref expr) => {
+            Expr::Assign(ref name, ref expr) => {
                 if used {
                     return Err(String::from("assign can not be used in expr format"));
                 }
-                self.write(expr, true)?;
+                self.write(expr, true, false)?;
 
-                println!("assign {}", self.scope.str_ptr(id).unwrap());
+                if local {
+                    if let Some(local_index) = self.local_scope.index(name) {
+                        self.writer.store_local(local_index);
+                        return Ok(())
+                    }
+                }
 
-                let name_ptr = self.scope
-                    .str_ptr(id)
-                    .ok_or(String::from("variable does not exist in scope"))?;
+                if !self.heap_scope.contains(name) {
+                    return Err(format!("variable {} does not exist in scope", name));
+                }
 
-                let string_pool_index = self.string(&name_ptr) as u16;
-                self.writer.store(string_pool_index);
+                let sp_index = self.string(&name) as u16;
+                self.writer.store_heap(sp_index);
             }
             Expr::Stmts(ref vec) => {
                 for expr in &vec[0..vec.len() - 1] {
-                    self.write(expr, false)?;
+                    self.write(expr, false, local)?;
                 }
-                self.write(&vec[vec.len() - 1], used)?;
+                self.write(&vec[vec.len() - 1], used, local)?;
             }
             Expr::Return(ref expr) => {
-                self.write(expr, true)?;
+                self.write(expr, true, false)?;
                 self.writer.ret();
             }
             Expr::Yield(ref expr) => {
-                self.write(expr, true)?;
+                self.write(expr, true, false)?;
                 self.writer.yld();
             }
             Expr::Block(ref expr) => {
-                self.scope.push_table("#");
-                self.write(expr, false)?;
-                self.scope.pop_table(); //todo take precautions to prevent leaking
+                self.local_scope.push_table();
+                self.write(expr, false, true)?;
+                self.local_scope.pop_table(); //todo take precautions to prevent leaking
             }
             Expr::Invoke(ref expr, ref vec) => {
-                self.write(expr, true)?;
+                self.write(expr, true, local)?;
                 for expr in vec {
-                    self.write(expr, true)?;
+                    self.write(expr, true, local)?;
                 }
                 self.writer.invoke(vec.len() as u8);
                 if !used {
@@ -138,21 +162,21 @@ impl Compiler {
                 }
             }
             Expr::If(ref truth, ref if_branch, ref else_branch) => {
-                self.write(truth, true)?;
+                self.write(truth, true, false)?;
 
                 let address = self.writer.position() + 9 /*jump_if_else*/ + Self::byte_size(if_branch, used);
 
                 if let &Some(ref else_branch) = else_branch {
                     self.writer.jump_if_false(address + 9); // size of if_branch + jump
-                    self.write(if_branch, used)?;
+                    self.write(if_branch, used, local)?;
 
                     let address = self.writer.position() + Self::byte_size(else_branch, used) + 9/*jump*/; // size of else_branch + jump
                     self.writer.jump(address);
 
-                    self.write(else_branch, used)?;
+                    self.write(else_branch, used, local)?;
                 } else {
                     self.writer.jump_if_false(address); // size of if_branch
-                    self.write(if_branch, used)?;
+                    self.write(if_branch, used, local)?;
                 }
             }
             _ => return Err(String::from("???")),
@@ -224,7 +248,7 @@ impl Compiler {
     }
 
     pub fn compile_separate(mut self, expr: &Expr) -> Result<(Vec<u8>, Vec<String>), String> {
-        self.write(expr, true)?;
+        self.write(expr, true, false)?;
         Ok((self.writer.complete(), self.sp))
     }
 
@@ -253,52 +277,58 @@ impl Compiler {
     }
 }
 
-struct CompilerScopes {
+
+struct LocalScope {
     tables: Vec<Scope>,
+    counter: u16,
 }
 
 struct Scope {
-    prefix: &'static str,
-    variables: HashSet<String>,
+    reset: u16,
+    map: HashMap<String, u16>,
 }
 
-impl CompilerScopes {
+impl LocalScope {
     fn new() -> Self {
-        CompilerScopes {
-            tables: vec![Scope { prefix: "", variables: HashSet::new() }],
+        LocalScope {
+            tables: Vec::new(),
+            counter: 0,
         }
     }
 
-    pub fn pop_table(&mut self) -> HashSet<String> {
-        self.tables.pop().unwrap().variables
+    pub fn pop_table(&mut self) {
+        let reset = self.tables.pop().unwrap().reset;
+        self.counter = reset;
     }
 
-    pub fn push_table(&mut self, prefix: &'static str) {
-        self.tables.push(Scope { prefix, variables: HashSet::new() });
+    pub fn push_table(&mut self) {
+        self.tables.push(Scope { reset: self.counter, map: HashMap::new() });
     }
 
-    pub fn declare(&mut self, name: &String) -> String {
-        self.tables.last_mut().unwrap().variables.insert(name.clone());
+    pub fn declare(&mut self, name: &String) -> u16 {
+        let index = self
+            .tables
+            .last()
+            .into_iter()
+            .filter_map(|s| s.map.get(name).cloned())
+            .nth(0)
+            .unwrap_or_else(|| {
+                let index = self.counter;
+                self.counter += 1;
+                index
+            });
 
-        use std::iter;
+        self.tables.last_mut().unwrap().map.insert(name.clone(), index);
+
+        index
+    }
+
+    pub fn index(&self, name: &String) -> Option<u16> {
         self.tables
             .iter()
-            .map(|t| t.prefix)
-            .chain(iter::once(name.as_ref()))
-            .collect()
-    }
-
-    pub fn str_ptr(&self, name: &String) -> Option<String> {
-        let count = self.tables
-            .iter()
-            .rposition(|t| t.variables.contains(name))? + 1;
-
-        let mut buf = String::with_capacity(count + name.len());
-        for i in 0..count {
-            buf.push_str(self.tables[i].prefix);
-        }
-        buf.push_str(name);
-
-        Some(buf)
+            .rev()
+            .filter_map(|s| s.map.get(name))
+            .nth(0)
+            .cloned()
     }
 }
