@@ -5,8 +5,7 @@ pub mod frame;
 
 use vm::inst::Inst;
 use vm::err::{RTErr, VMErr};
-use rt::obj::Obj;
-use rt::null::Null;
+use rt::Obj;
 use std::rc::Rc;
 use std::io::Read;
 use byteorder::{ReadBytesExt, LE};
@@ -16,7 +15,7 @@ use vm::frame::VMFrame;
 pub struct VM {
     len: u64,
     ptr_offset: u64,
-    sp: Vec<String>,
+    sp: Vec<Rc<String>>, // interned strings are shared instead of copied over and over again
     cursor: Cursor<Vec<u8>>,
 }
 
@@ -41,7 +40,6 @@ pub struct VM {
 //     }
 // }
 
-type Answer = Result<Option<Rc<Obj>>, VMErr>;
 impl VM {
     pub fn load(bytes: Vec<u8>) -> Result<Self, VMErr> {
         let (sp, ptr_offset) = Self::load_string_pool(&bytes)?;
@@ -50,10 +48,15 @@ impl VM {
         let len = program.len() as u64;
         let cursor = Cursor::new(program);
 
-        Ok(VM { sp, ptr_offset, len, cursor })
+        Ok(VM {
+            sp,
+            ptr_offset,
+            len,
+            cursor,
+        })
     }
 
-    fn load_string_pool(bytes: &Vec<u8>) -> Result<(Vec<String>, u64), VMErr> {
+    fn load_string_pool(bytes: &Vec<u8>) -> Result<(Vec<Rc<String>>, u64), VMErr> {
         let mut cursor = Cursor::new(bytes);
         let string_num = cursor.read_u64::<LE>().map_err(VMErr::IOErr)? as usize;
 
@@ -65,26 +68,20 @@ impl VM {
             let mut buf = vec![0u8; string_len];
             cursor.read_exact(&mut buf)?;
 
-            string_pool.push(String::from_utf8(buf).map_err(|_| VMErr::Internal)?);
+            string_pool.push(Rc::from(
+                String::from_utf8(buf).map_err(|_| VMErr::Internal)?,
+            ));
         }
 
         Ok((string_pool, cursor.position()))
     }
 
-    pub fn with_string_pool(inst: Vec<u8>, sp: Vec<String>) -> Self {
-        VM {
-            len: inst.len() as u64,
-            ptr_offset: 0,
-            cursor: Cursor::new(inst),
-            sp,
-        }
-    }
-
-    pub fn run(&mut self) -> Answer {
+    #[inline]
+    pub fn run(&mut self) -> Result<Option<Obj>, VMErr> {
         self.run_context(&mut VMFrame::default())
     }
 
-    pub fn run_context(&mut self, ctx: &mut VMFrame) -> Answer {
+    pub fn run_context(&mut self, ctx: &mut VMFrame) -> Result<Option<Obj>, VMErr> {
         let end = ctx.end.unwrap_or_else(|| self.len);
 
         self.cursor.set_position(ctx.ptr + self.ptr_offset);
@@ -100,6 +97,7 @@ impl VM {
         Ok(ctx.stack.pop())
     }
 
+    #[inline]
     fn fetch_inst(&mut self) -> Result<Inst, VMErr> {
         let byte = self.cursor.read_u8()?;
         Inst::from_u8(byte).ok_or_else(|| VMErr::UnknownInstruction(byte))
@@ -108,10 +106,10 @@ impl VM {
     fn bin_op(
         &mut self,
         ctx: &mut VMFrame,
-        func: fn(&Obj, Rc<Obj>, &mut VM) -> Result<Rc<Obj>, RTErr>,
+        func: fn(&Obj, &Obj, &mut VM) -> Result<Obj, RTErr>,
     ) -> Result<(), VMErr> {
-        let rhs = ctx.stack.pop().unwrap();
-        let lhs = &*ctx.stack.pop().unwrap();
+        let rhs = &ctx.stack.pop().unwrap();
+        let lhs = &ctx.stack.pop().unwrap();
         ctx.stack.push(func(lhs, rhs, self)?);
         Ok(())
     }
@@ -123,18 +121,19 @@ impl VM {
         match inst {
             LoadInt => {
                 let int = self.cursor.read_i32::<LE>()?;
-                ctx.stack.push(Rc::new(int));
+                ctx.stack.push(Obj::Int(int));
             }
             LoadNum => {
                 let num = self.cursor.read_f64::<LE>()?;
-                ctx.stack.push(Rc::new(num));
+                ctx.stack.push(Obj::Number(num));
             }
-            LoadNull => ctx.stack.push(Rc::new(Null)),
-            LoadTrue => ctx.stack.push(Rc::new(true)),
-            LoadFalse => ctx.stack.push(Rc::new(false)),
+            LoadNull => ctx.stack.push(Obj::Null),
+            LoadTrue => ctx.stack.push(Obj::Boolean(true)),
+            LoadFalse => ctx.stack.push(Obj::Boolean(false)),
             LoadStr => {
                 let index = self.cursor.read_u16::<LE>().map_err(VMErr::IOErr)?;
-                ctx.stack.push(Rc::new(self.sp[index as usize].to_owned()));
+                ctx.stack
+                    .push(Obj::InternedString(self.sp[index as usize].clone()));
             }
             Add => self.bin_op(ctx, Obj::add)?,
             Sub => self.bin_op(ctx, Obj::sub)?,
@@ -145,13 +144,13 @@ impl VM {
                 let id = &self.sp[sp_index];
                 match ctx.get_heap(id) {
                     Some(rc) => ctx.stack.push(rc),
-                    None => return Err(VMErr::UndefinedVariable(id.to_owned())),
+                    None => return Err(VMErr::UndefinedVariable((**id).to_owned())),
                 }
             }
             StoreHeap => {
                 let sp_index = self.cursor.read_u16::<LE>()? as usize;
                 let obj = ctx.stack.pop().unwrap();
-                ctx.set_heap_rc(self.sp[sp_index].to_owned(), obj);
+                ctx.set_heap(self.sp[sp_index].clone(), obj);
             }
             GetLocal => {
                 let local_index = self.cursor.read_u16::<LE>()?;
@@ -170,7 +169,7 @@ impl VM {
             Invoke => {
                 let arity = self.cursor.read_u8()? as usize;
 
-                let mut vec: Vec<Rc<Obj>> = vec![Rc::new(Null); arity];
+                let mut vec: Vec<Obj> = vec![Obj::Null; arity];
                 for i in 0..arity {
                     let item = ctx.stack.pop().unwrap();
                     vec[arity - i - 1] = item;

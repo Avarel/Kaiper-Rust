@@ -43,7 +43,11 @@ impl<'a> Tokenizer<'a> {
         Ok(())
     }
 
-    pub fn parse_char_into_vec(&mut self, c: char, list: &mut VecDeque<Token>) -> Result<(), String> {
+    pub fn parse_char_into_vec(
+        &mut self,
+        c: char,
+        list: &mut VecDeque<Token>,
+    ) -> Result<(), String> {
         match c {
             '\n' => list.push_back(self.make_token(TokenType::NewLine)),
             _x if _x.is_whitespace() => (),
@@ -91,7 +95,12 @@ impl<'a> Tokenizer<'a> {
         Ok(())
     }
 
-    fn string(&mut self, delim: char, template: bool, list: &mut VecDeque<Token>) -> Result<(), String> {
+    fn string(
+        &mut self,
+        delim: char,
+        template: bool,
+        list: &mut VecDeque<Token>,
+    ) -> Result<(), String> {
         let mut buffer = String::new();
         let mut not_terminated = true;
 

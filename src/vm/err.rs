@@ -13,7 +13,7 @@ pub enum VMErr {
 #[derive(Debug)]
 pub enum RTErr {
     TypeMismatch,
-    Unimplemented
+    Unimplemented,
 }
 
 impl From<Error> for VMErr {

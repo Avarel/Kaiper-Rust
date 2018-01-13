@@ -11,21 +11,13 @@ pub struct Parser {
 }
 
 impl Parser {
-    fn parse() {
+    fn parse() {}
 
-    }
+    fn parse_prefix(&mut self) {}
 
-    fn parse_prefix(&mut self) {
+    fn parse_infix(&mut self) {}
 
-    }
-
-    fn parse_infix(&mut self) {
-
-    }
-
-    fn precedence(&self) {
-        
-    }
+    fn precedence(&self) {}
 }
 
 #[derive(Clone)]

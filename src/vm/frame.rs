@@ -1,17 +1,19 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use rt::obj::Obj;
+use rt::Obj;
 use std::default::Default;
 use std::collections::HashMap;
+
+// Frame factory?
 
 #[derive(Clone)]
 pub struct VMFrame {
     pub ptr: u64,
     pub end: Option<u64>,
 
-    pub stack: Vec<Rc<Obj>>,
+    pub stack: Vec<Obj>,
     pub locals: Vec<FrameSlot>,
-    pub heap: HashMap<String, Rc<Obj>>,
+    pub heap: HashMap<Rc<String>, Obj>,
 }
 
 impl Default for VMFrame {
@@ -31,23 +33,19 @@ impl VMFrame {
         VMFrame::default()
     }
 
-    pub fn set_heap<V: Obj>(&mut self, k: String, v: V) -> Option<Rc<Obj>> {
-        self.set_heap_rc(k, Rc::new(v))
+    pub fn set_heap(&mut self, k: Rc<String>, v: Obj) {
+        self.heap.insert(k, v);
     }
 
-    pub fn set_heap_rc(&mut self, k: String, v: Rc<Obj>) -> Option<Rc<Obj>> {
-        self.heap.insert(k, v)
-    }
-
-    pub fn get_heap(&self, k: &String) -> Option<Rc<Obj>> {
+    pub fn get_heap(&self, k: &String) -> Option<Obj> {
         self.heap.get(k).cloned()
     }
 
-    pub fn delete_heap(&mut self, k: &String) -> Option<Rc<Obj>> {
-        self.heap.remove(k)
+    pub fn delete_heap(&mut self, k: &String) {
+        self.heap.remove(k);
     }
 
-    pub fn set_local(&mut self, index: u16, value: Rc<Obj>) {
+    pub fn set_local(&mut self, index: u16, value: Obj) {
         let index = index as usize;
         if index < self.locals.len() {
             self.locals[index as usize].replace(value);
@@ -59,7 +57,7 @@ impl VMFrame {
     }
 
     // abandons the old slot (which might be kept by derived frames) and sets a new slot with the value
-    pub fn new_local(&mut self, index: u16, value: Rc<Obj>) {
+    pub fn new_local(&mut self, index: u16, value: Obj) {
         let index = index as usize;
         if index < self.locals.len() {
             self.locals[index as usize] = FrameSlot::new(value);
@@ -70,28 +68,28 @@ impl VMFrame {
         }
     }
 
-    pub fn get_local(&mut self, index: u16) -> Rc<Obj> {
+    pub fn get_local(&mut self, index: u16) -> Obj {
         self.locals[index as usize].get().clone()
     }
 }
 
 #[derive(Clone)]
 pub struct FrameSlot {
-    value: Rc<RefCell<Rc<Obj>>>,
+    value: Rc<RefCell<Obj>>,
 }
 
 impl FrameSlot {
-    fn new(value: Rc<Obj>) -> Self {
+    fn new(value: Obj) -> Self {
         FrameSlot {
             value: Rc::new(RefCell::new(value)),
         }
     }
 
-    fn replace(&self, value: Rc<Obj>) -> Rc<Obj> {
+    fn replace(&self, value: Obj) -> Obj {
         self.value.replace(value)
     }
 
-    fn get(&self) -> Rc<Obj> {
+    fn get(&self) -> Obj {
         RefCell::borrow(&self.value).clone()
     }
 }

@@ -22,8 +22,18 @@ use std::rc::Rc;
 //     mem::transmute((ptr.offset(start as isize), end - start))
 // }
 
-fn main() {
+// trait Why {
+//     fn what(wee: Rc<Why>) -> Rc<Why>;
+// }
 
+// #[derive(Clone)]
+// enum Why {
+//     Int(i32),
+//     Float(f64),
+//     IntBox(Rc<i32>),
+// }
+
+fn main() {
     // loop_read();
     // return;
     // let string_pool: Vec<String> = vec!["hello there", "good bye", "WOOHOOOOOO", "one", "two", "printall"]
@@ -206,13 +216,13 @@ fn main() {
 
     use rt::function::NativeFunction;
     cont.set_heap(
-        String::from("printall"),
-        NativeFunction::new("printall", |args| {
+        Rc::new(String::from("printall")),
+        rt::Obj::NativeFunction(Rc::new(NativeFunction::new("printall", |args| {
             for rc in args {
                 println!("{}", rc);
             }
-            Ok(Rc::new(rt::null::Null))
-        }),
+            Ok(rt::Obj::Null)
+        }))),
     );
 
     for _ in 0..1 {
